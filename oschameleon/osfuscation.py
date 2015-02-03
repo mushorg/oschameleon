@@ -470,10 +470,8 @@ class ICMPPacket(ReplyPacket):
 
 def send_TCP_reply(pkt, OSPattern, O_W_DF_RD_PARAM, flags, ipid = 0, seqn = 'O', ack = 'S+'):
     """
-    send TCP reply packet
-    ----------------------------------------------------------
-    following parameter are optional:
-        ipid, seqn, ack,
+    Send TCP reply packet
+    following parameter are optional: ipid, seqn, ack,
     """
     # create reply packet and set flags
     tcp_rpl = TCPPacket(pkt, OSPattern)
@@ -502,7 +500,7 @@ def send_TCP_reply(pkt, OSPattern, O_W_DF_RD_PARAM, flags, ipid = 0, seqn = 'O',
 
 def send_ICMP_reply(pkt, ICMP_type, OSPattern, O_W_DF_RD_PARAM):
     """
-    send ICMP reply packet
+    Send ICMP reply packet
     """
     # create reply packet and set flags
     icmp_rpl = ICMPPacket(pkt, OSPattern, ICMP_type)
@@ -546,12 +544,9 @@ def drop_packet(nfq_packet):
 
 def check_TCP_Nmap_match(pkt, nfq_packet, options_2_cmp, TCP_wsz_flags, IP_flags = "no", urgt_ptr = 0):
     """
-    # ----------------------------------------------------------
-    # Check if the packet is a Nmap probe
-    # ----------------------------------------------------------
-    #		IPflags and urgt_ptr are optional
-    #
-    #       return 1 if packet is a Nmap probe
+    Check if the packet is a Nmap probe
+    IPflags and urgt_ptr are optional
+    return 1 if packet is a Nmap probe
     """
     if pkt[TCP].window == TCP_wsz_flags['WSZ'] and pkt[TCP].flags == TCP_wsz_flags['FLGS'] and pkt[TCP].options == options_2_cmp:
         if IP_flags == "no":
@@ -649,10 +644,8 @@ def check_TCP_probes(pkt, nfq_packet, OSPattern):
 
 def check_ICMP_probes(pkt, nfq_packet, OSPattern):
     """
-    # ----------------------------------------------------------
-    # Identify the ICMP based probes
-    # and reply with a faked packet if needed
-    # ----------------------------------------------------------
+    Identify the ICMP based probes
+    and reply with a faked packet if needed
     """
     if pkt[ICMP].type is 8:
 
@@ -673,10 +666,8 @@ def check_ICMP_probes(pkt, nfq_packet, OSPattern):
 
 def check_UDP_probe(pkt, nfq_packet,  OSPattern):
     """
-    # ----------------------------------------------------------
-    # Identify the UDP based probe
-    # and reply with a faked reply if needed
-    # ----------------------------------------------------------
+    Identify the UDP based probe
+    and reply with a faked reply if needed
     """
     if pkt[IP].id == 0x1042 and pkt[UDP].payload.load[0] == "C" and pkt[UDP].payload.load[1] == "C" and pkt[UDP].payload.load[2] == "C":
         drop_packet(nfq_packet)
@@ -693,10 +684,8 @@ def check_UDP_probe(pkt, nfq_packet,  OSPattern):
 
 class process_pkt(object):
     """
-    # ----------------------------------------------------------
-    # Do a separation according to the TCP/IP trasport layer
-    # check if the packet is a nmap probe and send OS specific replies
-    # ----------------------------------------------------------
+    Do a separation according to the TCP/IP trasport layer
+    check if the packet is a nmap probe and send OS specific replies
     """
     def __init__(self, OSPattern):
         self.OSPattern = OSPattern

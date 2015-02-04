@@ -1,0 +1,6 @@
+recursive-exclude tests *
+include requirements.txt
+include README.md
+include Changelog.txt
+recursive-include oschameleon *
+recursive-exclude oschameleon *.pyc

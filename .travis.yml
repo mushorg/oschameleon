@@ -4,9 +4,10 @@ python:
 virtualenv:
   system_site_packages: true
 before_install:
-- sudo apt-get -q update
-- sudo apt-get -q install python-nfqueue
+- sudo apt-get -qq update
+- sudo apt-get -qq install python-nfqueue
 install:
+- pip install -r requirements.txt
 - python2.7 setup.py install
 script:
 - nosetests -v

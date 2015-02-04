@@ -63,36 +63,41 @@ conf.L3socket = L3RawSocket
 # ----------------------------------------------------------
 
 # The TCP Option fields in the Nmap probes
-NMAP_PROBE_TCP_OPTION = { 'P1'     :    [('WScale', 10), ('NOP', None), ('MSS', 1460), ('Timestamp', (4294967295, 0)), ('SAckOK', '')],
-                          'P2'     :    [('MSS', 1400), ('WScale', 0), ('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('EOL', None)],
-                          'P3'     :    [('Timestamp', (4294967295, 0)), ('NOP', None), ('NOP', None), ('WScale', 5), ('NOP', None), ('MSS', 640)],
-                          'P4'     :    [('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('WScale', 10), ('EOL', None)],
-                          'P5'     :    [('MSS', 536), ('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('WScale', 10), ('EOL', None)],
-                          'P6'     :    [('MSS', 265), ('SAckOK', ''), ('Timestamp', (4294967295, 0))],
-                          'ECN'    :    [('WScale', 10), ('NOP', None), ('MSS', 1460), ('SAckOK', ''), ('NOP', None), ('NOP', None)],
-                          'T2-T6'  :    [('WScale', 10), ('NOP', None), ('MSS', 265), ('Timestamp', (4294967295, 0)), ('SAckOK', '')],
-                          'T7'     :    [('WScale', 15), ('NOP', None), ('MSS', 265), ('Timestamp', (4294967295, 0)), ('SAckOK', '')]}
+NMAP_PROBE_TCP_OPTION = {
+    'P1': [('WScale', 10), ('NOP', None), ('MSS', 1460), ('Timestamp', (4294967295, 0)), ('SAckOK', '')],
+    'P2': [('MSS', 1400), ('WScale', 0), ('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('EOL', None)],
+    'P3': [('Timestamp', (4294967295, 0)), ('NOP', None), ('NOP', None), ('WScale', 5), ('NOP', None), ('MSS', 640)],
+    'P4': [('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('WScale', 10), ('EOL', None)],
+    'P5': [('MSS', 536), ('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('WScale', 10), ('EOL', None)],
+    'P6': [('MSS', 265), ('SAckOK', ''), ('Timestamp', (4294967295, 0))],
+    'ECN': [('WScale', 10), ('NOP', None), ('MSS', 1460), ('SAckOK', ''), ('NOP', None), ('NOP', None)],
+    'T2-T6': [('WScale', 10), ('NOP', None), ('MSS', 265), ('Timestamp', (4294967295, 0)), ('SAckOK', '')],
+    'T7': [('WScale', 15), ('NOP', None), ('MSS', 265), ('Timestamp', (4294967295, 0)), ('SAckOK', '')]}
 
 # The TCP Window Size and TCP Flags wich have to match
-NMAP_PROBE_TCP_ATTR = { 'P1'  : { 'WSZ'  : 1,     'FLGS' : 0x02 },
-                        'P2'  : { 'WSZ'  : 63,    'FLGS' : 0x02 },
-                        'P3'  : { 'WSZ'  : 4,     'FLGS' : 0x02 },
-                        'P4'  : { 'WSZ'  : 4,     'FLGS' : 0x02 },
-                        'P5'  : { 'WSZ'  : 16,    'FLGS' : 0x02 },
-                        'P6'  : { 'WSZ'  : 512,   'FLGS' : 0x02 },
-                        'ECN' : { 'WSZ'  : 3,     'FLGS' : 0xc2 },
-                        'T2'  : { 'WSZ'  : 128,   'FLGS' : 0 },
-                        'T3'  : { 'WSZ'  : 256,   'FLGS' : 0x02b },
-                        'T4'  : { 'WSZ'  : 1024,  'FLGS' : 0x010 },
-                        'T5'  : { 'WSZ'  : 31337, 'FLGS' : 0x002 },
-                        'T6'  : { 'WSZ'  : 32768, 'FLGS' : 0x010 },
-                        'T7'  : { 'WSZ'  : 65535, 'FLGS' : 0x029 }}
+NMAP_PROBE_TCP_ATTR = {
+    'P1': {'WSZ': 1, 'FLGS': 0x02},
+    'P2': {'WSZ': 63, 'FLGS': 0x02},
+    'P3': {'WSZ': 4, 'FLGS': 0x02},
+    'P4': {'WSZ': 4, 'FLGS': 0x02},
+    'P5': {'WSZ': 16, 'FLGS': 0x02},
+    'P6': {'WSZ': 512, 'FLGS': 0x02},
+    'ECN': {'WSZ': 3, 'FLGS': 0xc2},
+    'T2': {'WSZ': 128, 'FLGS': 0},
+    'T3': {'WSZ': 256, 'FLGS': 0x02b},
+    'T4': {'WSZ': 1024, 'FLGS': 0x010},
+    'T5': {'WSZ': 31337, 'FLGS': 0x002},
+    'T6': {'WSZ': 32768, 'FLGS': 0x010},
+    'T7': {'WSZ': 65535, 'FLGS': 0x029}
+}
 
 # Flags in IP Header
 # 0x02 ^= DF-Bit
-NMAP_PROBE_IP_ATTR = { 'T2' : {'FLGS' : 0x02},
-                       'T4' : {'FLGS' : 0x02},
-                       'T6' : {'FLGS' : 0x02}}
+NMAP_PROBE_IP_ATTR = {
+    'T2': {'FLGS': 0x02},
+    'T4': {'FLGS': 0x02},
+    'T6': {'FLGS': 0x02}
+}
 
 # TCP Urgent Pointer in ECN probe
 ECN_URGT_PTR = 0xF7F5

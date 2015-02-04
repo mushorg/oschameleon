@@ -1,0 +1,2 @@
+OSChameleon 0.1.0 (release 2015-02-04)
+    * First release.

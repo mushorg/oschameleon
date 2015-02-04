@@ -6,7 +6,7 @@ import pwd
 import grp
 
 import gevent
-import oschameleon
+import oschameleon.osfuscation
 
 
 def root_process():

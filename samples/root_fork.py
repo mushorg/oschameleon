@@ -11,7 +11,7 @@ import oschameleon
 
 def root_process():
     print("Child running as {0}/{1}.".format(pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
-    oschameleon.osfuscation.main()
+    oschameleon.osfuscation.OSFuscation.run()
 
 
 def drop_privileges(uid_name='nobody', gid_name='nogroup'):

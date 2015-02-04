@@ -728,36 +728,38 @@ class ProcessPKT(object):
             forward_packet(nfq_packet)
 
 
-def main():
+class OSFuscation(object):
+    @classmethod
+    def run(cls):
 
-    # check if root
-    if not os.geteuid() == 0:
-        exit("\nPlease run as root\n")
+        # check if root
+        if not os.geteuid() == 0:
+            exit("\nPlease run as root\n")
 
-    # Configure NFQUEUE target
-    # Capture incoming packets and put in nfqueue 1
-    os.system('iptables -A INPUT -j NFQUEUE --queue-num 0')
+        # Configure NFQUEUE target
+        # Capture incoming packets and put in nfqueue 1
+        os.system('iptables -A INPUT -j NFQUEUE --queue-num 0')
 
-    # creation of a new queue object
-    q = nfqueue.queue()
-    q.open()
+        # creation of a new queue object
+        q = nfqueue.queue()
+        q.open()
 
-    # creation of the netlink socket, bind to a family and a queue number
-    q.bind(socket.AF_INET)
-    q.set_callback(ProcessPKT(OSPattern).start)
-    q.create_queue(0)
+        # creation of the netlink socket, bind to a family and a queue number
+        q.bind(socket.AF_INET)
+        q.set_callback(ProcessPKT(OSPattern).start)
+        q.create_queue(0)
 
-    # run endless loop for packet manipulation
-    try:
-        q.try_run()
-    except KeyboardInterrupt:
+        # run endless loop for packet manipulation
+        try:
+            q.try_run()
+        except KeyboardInterrupt:
 
-        # on exit clean up
-        q.unbind(socket.AF_INET)
-        q.close()
-        os.system('iptables -F')
-        sys.exit('Exiting...')
+            # on exit clean up
+            q.unbind(socket.AF_INET)
+            q.close()
+            os.system('iptables -F')
+            sys.exit('Exiting...')
 
 
 if __name__ == '__main__':
-    main()
+    OSFuscation.run()

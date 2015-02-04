@@ -1,12 +1,8 @@
 #!/usr/bin/python
-# author 			Anton Hinterleitner	   - is111012@fhstp.ac.at
-# date 				28.07.2014
-#
-#
-#  version 0.0.1
-#
-"""
 
+# Copyright (C) 2013  Anton Hinterleitner <is111012@fhstp.ac.at>
+
+"""
 Description: Fools the probes of nmap scanner
 
 Prerequisites: Linux
@@ -39,16 +35,20 @@ Network Distance: 1 hop
 
 """
 
+import random
+import math
+import struct
+import os
+import sys
+import socket
+
+import nfqueue
+
+# import needed Scapy modules
 import logging
 # Log error messages only
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
-import os
-import sys
-import socket
-import nfqueue
-import random, math, struct
-# import needed Scapy modules
 from scapy.config import conf
 from scapy.supersocket import L3RawSocket
 from scapy.all import IP, TCP, UDP, ICMP, send
@@ -164,74 +164,84 @@ class OSPattern(object):
 
     # Timestamp in reply packets
     TCP_Timestamp_tmp = 1
-    # Timestampcounter 1... if TS = U
+    # Timestamp counter 1... if TS = U
     TCP_TS_CNT = 1
 
     # define which probes to send
-    PROBES_2_SEND = {'P1'  : 1,
-                'P2'  : 1,
-                'P3'  : 1,
-                'P4'  : 1,
-                'P5'  : 0,     #   if no WIN and OPS probe test,  set to 0
-                'P6'  : 0,     #	if no WIN and OPS probe test,  set to 0
-                'ECN' : 0,
-                'T2'  : 0,
-                'T3'  : 0,
-                'T4'  : 0,
-                'T5'  : 1,
-                'T6'  : 1,
-                'T7'  : 1,
-                'IE'  : 1,
-                'U1'  : 1}
+    PROBES_2_SEND = {
+        'P1': 1,
+        'P2': 1,
+        'P3': 1,
+        'P4': 1,
+        'P5': 0,  # if no WIN and OPS probe test,  set to 0
+        'P6': 0,  # if no WIN and OPS probe test,  set to 0
+        'ECN': 0,
+        'T2': 0,
+        'T3': 0,
+        'T4': 0,
+        'T5': 1,
+        'T6': 1,
+        'T7': 1,
+        'IE': 1,
+        'U1': 1
+    }
 
     # set TCP FLG
-    TCP_FLAGS = { 'SEQ'	: 'SA',
-                 'ECN'	: '0',
-                                # Y	set - 0x052 = ECE, SYN
-                                # N	set - 0x02  = SYN
-                                # S	set - 0x0C2 = CWR, ECE, SYN
-                                # O	set - 0x052 = CWR, SYN
-                 'T2'	: 0,
-                 'T3'	: 0,
-                 'T4'	: 0,
-                 'T5'	: 'RA',
-                 'T6'	: 'R',
-                 'T7'   : 'RA' }
+    TCP_FLAGS = {
+        'SEQ': 'SA',
+        'ECN': '0',
+        # Y	set - 0x052 = ECE, SYN
+        # N	set - 0x02  = SYN
+        # S	set - 0x0C2 = CWR, ECE, SYN
+        # O	set - 0x052 = CWR, SYN
+        'T2': 0,
+        'T3': 0,
+        'T4': 0,
+        'T5': 'RA',
+        'T6': 'R',
+        'T7': 'RA'
+    }
 
     # TCP Sequence Number
     # A+, A, 0 = Z, O = something else
-    TCP_SEQ_NR = { 'T2'	: 0,
-               'T3'	: 0,
-               'T4'	: 0,
-               'T5'	: 0,
-               'T6'	: 'A',
-               'T7'	: 0 }
+    TCP_SEQ_NR = {
+        'T2': 0,
+        'T3': 0,
+        'T4': 0,
+        'T5': 0,
+        'T6': 'A',
+        'T7': 0
+    }
 
     # TCP Acknowledgment Number
     # S+, S, 0 = Z,  O = something else
-    TCP_ACK_NR = { 'T2'	: 0,    	#
-               'T3'	: 0,    	#
-               'T4'	: 0,		#
-               'T5'	: 'S+',     #
-               'T6'	: 0,    	#
-               'T7'	: 'S' }
+    TCP_ACK_NR = {
+        'T2': 0,
+        'T3': 0,
+        'T4': 0,
+        'T5': 'S+',
+        'T6': 0,
+        'T7': 'S'
+    }
 
     # Set TCP Options, Window Size, IP DF-bit and TCP data
-    O_W_DF_RD_PARAM = {   'P1'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'P2'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'P3'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'P4'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'P5'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'P6'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'ECN' : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'T2'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'T3'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'T4'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'T5'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'T6'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'T7'  : { 'O'  : 0, 'W' : 0, 'DF' : 0, 'RD' : 0 },
-                          'U1'  : { 'DF' : 0},
-                          'IE'  : { 'DF' : 0}}
+    O_W_DF_RD_PARAM = {
+        'P1': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'P2': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'P3': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'P4': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'P5': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'P6': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'ECN': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'T2': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'T3': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'T4': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'T5': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'T6': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'T7': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+        'U1': {'DF': 0},
+        'IE': {'DF': 0}
+    }
 
     # U1 probe (UDP)
     # Clear data from UDP reply
@@ -242,7 +252,7 @@ class OSPattern(object):
     # IE probe
     # 0 =^ Z
     # S =^ same as from probes
-    ICMP_CODE  = 'S'
+    ICMP_CODE = 'S'
 
 
 def _build_crc_tables(crc32_table, crc32_reverse):

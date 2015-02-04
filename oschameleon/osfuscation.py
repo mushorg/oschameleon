@@ -325,7 +325,6 @@ def reverse_crc(wanted_crc):
 class ReplyPacket(object):
     """
     IP packet
-    ----------------------------------------------------------
     Setting the IP fields
     """
     def __init__(self, pkt, OSPattern):
@@ -345,15 +344,15 @@ class ReplyPacket(object):
     # set IP ID according to the OS pattern
     def set_IP_ID(self, ip_id):
 
-        if(ip_id == 'I'):
+        if ip_id == 'I':
             OSPattern.IP_ID_tmp += 1
             self.ip.id = OSPattern.IP_ID_tmp
 
-        elif(ip_id == 'RI'):
+        elif ip_id == 'RI':
             OSPattern.IP_ID_tmp += 1001
             self.ip.id = OSPattern.IP_ID_tmp
 
-        elif(ip_id == 'Z'):
+        elif ip_id == 'Z':
             OSPattern.IP_ID_tmp += 0
             self.ip.id = OSPattern.IP_ID_tmp
         else:
@@ -386,21 +385,21 @@ class TCPPacket(ReplyPacket):
             # The function of the calculation of the TCP Sequence Number belongs to honed
             # https://github.com/DataSoft/Honeyd/blob/master/personality.c   -  line 521 ff
 
-            if self.OSPattern.GCD > 0 and self.OSPattern.GCD < 9:
+            if 0 < self.OSPattern.GCD < 9:
                 temp = random.randint(0, self.OSPattern.SEQ_std_dev)
 
                 ISN_delta = self.OSPattern.SEQNr_mean
 
-                while((self.OSPattern.SEQ_MAX < (self.OSPattern.SEQNr_mean + temp)) or (self.OSPattern.SEQ_MIN > (self.OSPattern.SEQNr_mean + temp))):
+                while (self.OSPattern.SEQ_MAX < (self.OSPattern.SEQNr_mean + temp)) or (self.OSPattern.SEQ_MIN > (self.OSPattern.SEQNr_mean + temp)):
                     temp = random.randint(0, self.OSPattern.SEQ_std_dev)
 
                 ISN_delta += temp
 
-                self.OSPattern.TCP_SEQ_NR_tmp = (self.OSPattern.TCP_SEQ_NR_tmp + ISN_delta)%2**32
+                self.OSPattern.TCP_SEQ_NR_tmp = (self.OSPattern.TCP_SEQ_NR_tmp + ISN_delta) % 2**32
                 self.tcp.seq = self.OSPattern.TCP_SEQ_NR_tmp
 
             else:
-                self.OSPattern.TCP_SEQ_NR_tmp = (self.OSPattern.TCP_SEQ_NR_tmp + self.OSPattern.SEQNr_mean)%2**32
+                self.OSPattern.TCP_SEQ_NR_tmp = (self.OSPattern.TCP_SEQ_NR_tmp + self.OSPattern.SEQNr_mean) % 2**32
                 self.tcp.seq = self.OSPattern.TCP_SEQ_NR_tmp
 
         elif seqn == 'A':
@@ -438,10 +437,9 @@ class TCPPacket(ReplyPacket):
         if rd:
             self.tcp.payload = reverse_crc(rd)
 
-
     # send TCP packet on wire
     def send_packet(self):
-        #print "Sending back a faked reply(TCP) to %s" % self.ip.dst
+        # print "Sending back a faked reply(TCP) to %s" % self.ip.dst
         send(self.ip/self.tcp, verbose=0)
 
 
@@ -449,20 +447,20 @@ class ICMPPacket(ReplyPacket):
     """
     ICMP packet
     """
-    def __init__(self, pkt, OSPattern, type):
+    def __init__(self, pkt, OSPattern, package_type):
         ReplyPacket.__init__(self, pkt, OSPattern)
         self.icmp = ICMP()
         self.pkt = pkt
 
         # type = 0 ^= echo reply
-        if type == 0:
+        if package_type == 0:
             self.icmp.type = 0
             self.icmp.id = pkt[ICMP].id
             self.icmp.seq = pkt[ICMP].seq
             self.data = pkt[ICMP].payload
 
         # type = 3 & code = 3 ^= port unreachable
-        elif type == 3:
+        elif package_type == 3:
             self.icmp.type = 3
             self.icmp.code = 3
             self.icmp.unused = OSPattern.UN
@@ -483,7 +481,7 @@ class ICMPPacket(ReplyPacket):
             send(self.ip/self.icmp/self.pkt, verbose=0)
 
 
-def send_TCP_reply(pkt, OSPattern, O_W_DF_RD_PARAM, flags, ipid = 0, seqn = 'O', ack = 'S+'):
+def send_TCP_reply(pkt, OSPattern, O_W_DF_RD_PARAM, flags, ipid=0, seqn='O', ack='S+'):
     """
     Send TCP reply packet
     following parameter are optional: ipid, seqn, ack,
@@ -540,7 +538,7 @@ def send_ICMP_reply(pkt, ICMP_type, OSPattern, O_W_DF_RD_PARAM):
         icmp_rpl.set_IP_ID(1)
 
         # some OS reply with no data returned
-        if(OSPattern.CL_UDP_DATA):
+        if OSPattern.CL_UDP_DATA:
             icmp_rpl.clr_payload()
 
         # send ICMP Port Unreachable
@@ -557,7 +555,7 @@ def drop_packet(nfq_packet):
     nfq_packet.set_verdict(nfqueue.NF_DROP)
 
 
-def check_TCP_Nmap_match(pkt, nfq_packet, options_2_cmp, TCP_wsz_flags, IP_flags = "no", urgt_ptr = 0):
+def check_TCP_Nmap_match(pkt, nfq_packet, options_2_cmp, TCP_wsz_flags, IP_flags="no", urgt_ptr=0):
     """
     Check if the packet is a Nmap probe
     IPflags and urgt_ptr are optional
@@ -665,7 +663,7 @@ def check_ICMP_probes(pkt, nfq_packet, OSPattern):
     if pkt[ICMP].type is 8:
 
         # Probe 1 + 2
-        if (pkt[ICMP].seq == 295 and pkt[IP].flags == 0x02 and len(pkt[ICMP].payload) == 120) or (pkt[ICMP].seq == 296 and  pkt[IP].tos == 0x04 and len(pkt[ICMP].payload) == 150):
+        if (pkt[ICMP].seq == 295 and pkt[IP].flags == 0x02 and len(pkt[ICMP].payload) == 120) or (pkt[ICMP].seq == 296 and pkt[IP].tos == 0x04 and len(pkt[ICMP].payload) == 150):
             drop_packet(nfq_packet)
 
             if OSPattern.PROBES_2_SEND["IE"]:
@@ -697,7 +695,7 @@ def check_UDP_probe(pkt, nfq_packet,  OSPattern):
         forward_packet(nfq_packet)
 
 
-class process_pkt(object):
+class ProcessPKT(object):
     """
     Do a separation according to the TCP/IP trasport layer
     check if the packet is a nmap probe and send OS specific replies
@@ -746,7 +744,7 @@ def main():
 
     # creation of the netlink socket, bind to a family and a queue number
     q.bind(socket.AF_INET)
-    q.set_callback(process_pkt(OSPattern).start)
+    q.set_callback(ProcessPKT(OSPattern).start)
     q.create_queue(0)
 
     # run endless loop for packet manipulation

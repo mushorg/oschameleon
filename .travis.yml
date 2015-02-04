@@ -2,8 +2,8 @@ language: python
 python:
 - '2.7'
 before_install:
-- sudo apt-get -qq update
-- sudo apt-get -qq install python2.7 python-pip git python-nfqueue
+- sudo apt-get -q update
+- sudo apt-get -q install python-nfqueue
 install:
 - python2.7 setup.py install
 script:

@@ -4,34 +4,48 @@ gevent.monkey.patch_all()
 import os
 import pwd
 import grp
+import argparse
 
 import gevent
 import oschameleon.osfuscation
 
 
 def root_process():
-    print("Child running as {0}/{1}.".format(pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
-    oschameleon.osfuscation.OSFuscation.run()
+    print("Child: Running as {0}/{1}.".format(pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
+    oschameleon.osfuscation.OSFuscation.run(args.template)
 
 
 def drop_privileges(uid_name='nobody', gid_name='nogroup'):
-    print("Running as {0}/{1}.".format(pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
+    print("Init: Running as {0}/{1}.".format(pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
     wanted_uid = pwd.getpwnam(uid_name)[2]
     wanted_gid = grp.getgrnam(gid_name)[2]
 
     pid = gevent.fork()
     if pid == 0:
+        # child
+        child_process = gevent.spawn(root_process)
+        try:
+            child_process.join()
+        except KeyboardInterrupt:
+            oschameleon.osfuscation.flush_tables()
+    else:
+        # parent
         os.setgid(wanted_gid)
         os.setuid(wanted_uid)
         new_uid_name = pwd.getpwuid(os.getuid())[0]
         new_gid_name = grp.getgrgid(os.getgid())[0]
-        print("Privileges dropped, running as {0}/{1}.".format(new_uid_name, new_gid_name))
-    else:
-        lets = gevent.spawn(root_process)
-        gevent.joinall([lets, ])
+        print("Parent: Privileges dropped, running as {0}/{1}.".format(new_uid_name, new_gid_name))
+        while True:
+            try:
+                gevent.sleep(1)
+            except KeyboardInterrupt:
+                break
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='OSChameleon sample usage')
+    parser.add_argument('--template', metavar='template.txt', type=str, help='path to the fingerprint template')
+    args = parser.parse_args()
     try:
         drop_privileges()
     except KeyboardInterrupt:

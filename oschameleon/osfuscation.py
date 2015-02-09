@@ -14,17 +14,19 @@ Note:          This script flushes iptables before and after usage.
 
 OS fingerprint from Nmap database:
 
-SEQ(SP=0%GCD=FA7F%ISR=9A%TI=I%CI=I%II=I%SS=S%TS=U)
+SEQ(SP=0-5%GCD=FA7F|1F4FE|2EF7D|3E9FC|4E47B%ISR=94-9E%TI=I%CI=I%II=I%SS=S%TS=U)
+OPS(R=N)
+WIN(R=N)
 ECN(R=N)
-T1(R=Y%DF=N%T=19%S=O%A=S+%F=AS%RD=0%Q=)
+T1(R=Y%DF=N%T=19-23%TG=20%S=O%A=S+%F=AS%RD=0%Q=)
 T2(R=N)
 T3(R=N)
 T4(R=N)
-T5(R=Y%DF=N%T=19%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)
-T6(R=Y%DF=N%T=19%W=0%S=A%A=Z%F=R%O=%RD=0%Q=)
-T7(R=Y%DF=N%T=19%W=0%S=Z%A=S%F=AR%O=%RD=0%Q=)
-U1(R=Y%DF=N%T=19%IPL=38%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)
-IE(R=Y%DFI=N%T=19%CD=S)
+T5(R=Y%DF=N%T=19-23%TG=20%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)
+T6(R=Y%DF=N%T=19-23%TG=20%W=0%S=A%A=Z%F=R%O=%RD=0%Q=)
+T7(R=Y%DF=N%T=19-23%TG=20%W=0%S=Z%A=S%F=AR%O=%RD=0%Q=)
+U1(DF=N%T=19-23%TG=20%IPL=38%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)
+IE(DFI=N%T=19-23%TG=20%CD=S)
 
 
 Running: Siemens embedded
@@ -52,6 +54,8 @@ logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.config import conf
 from scapy.supersocket import L3RawSocket
 from scapy.all import IP, TCP, UDP, ICMP, send
+
+from parse_fp import get_os_pattern
 
 # Set Scapy settings
 conf.verbose = 0
@@ -120,144 +124,148 @@ ECN_URGT_PTR = 0xF7F5
 # os.system('ifconfig eth0 up')
 
 
-class OSPattern(object):
+class OSPatternTemplate(object):
     """
     Defining the OS characteristics
     Take the values from the Nmap fingerprint
     """
+    def __init__(self):
+        self.TTL = 0x20
 
-    TTL = 0x20
+        # SEQ probes
+        # GCD Greatest common divisor
+        self.GCD = 0xFA7F
 
-    # SEQ probes
-    # GCD Greatest common divisor
-    GCD = 0xFA7F
+        # ISR Initial SEQNr counter rate
+        self.ISR_MIN = 0x94
+        self.ISR_MAX = 0x9E
+        self.ISR_mean = (self.ISR_MIN + self.ISR_MAX) / 2
 
-    # ISR Initial SEQNr counter rate
-    ISR_MIN = 0x94
-    ISR_MAX = 0x9E
-    ISR_mean = (ISR_MIN + ISR_MAX) / 2
+        # SP (standard deviation of Initial SEQNr)
+        self.SP_MIN = 0
+        self.SP_MAX = 5
+        self.SP_mean = (self.SP_MIN + self.SP_MAX) / 2
 
-    # SP (standard deviation of Initial SEQNr)
-    SP_MIN = 0
-    SP_MAX = 5
-    SP_mean = (SP_MIN + SP_MAX) / 2
+        if self.GCD > 9:
+            self.SEQNr_mean = self.GCD
+        else:
+            self.SEQNr_mean = math.trunc(round((2 ** (self.ISR_mean/8))*0.1))
+            self.SEQ_MIN = math.trunc(round((2 ** (self.ISR_MIN/8))*0.1))
+            self.SEQ_MAX = math.trunc(round((2 ** (self.ISR_MAX/8))*0.1))
 
-    if GCD > 9:
-        SEQNr_mean = GCD
-    else:
-        SEQNr_mean = math.trunc(round((2 ** (ISR_mean/8))*0.1))
-        SEQ_MIN = math.trunc(round((2 ** (ISR_MIN/8))*0.1))
-        SEQ_MAX = math.trunc(round((2 ** (ISR_MAX/8))*0.1))
+            self.SEQ_std_dev = math.trunc(round((2 ** (self.SP_mean/8))))
 
-        SEQ_std_dev = math.trunc(round((2 ** (SP_mean/8))))
+            self.SEQ_MAX += (self.SEQ_std_dev/8)
+            self.SEQ_MIN -= (self.SEQ_std_dev/8)
 
-        SEQ_MAX += (SEQ_std_dev/8)
-        SEQ_MIN -= (SEQ_std_dev/8)
+        # start value of SEQNR
+        self.TCP_SEQ_NR_tmp = random.randint(1, 10)
 
-    # start value of SEQNR
-    TCP_SEQ_NR_tmp = random.randint(1, 10)
+        # TI - CI - II
+        # difference of IP header ID fields by different response groups
+        #  I (incremental)
+        #  RI (random positive increments)
+        #  BI (broken increment)
+        self.IP_ID_TI_CNT = 'I'				# SEQ - TI field
+        self.IP_ID_CI_CNT = 'I'			    # T5-7 - CI field
+        self.IP_ID_II_CNT = 'I'				# IE - II field
+        self.IP_ID_tmp = 1
 
-    # TI - CI - II
-    # difference of IP header ID fields by different response groups
-    #  I (incremental)
-    #  RI (random positive increments)
-    #  BI (broken increment)
-    IP_ID_TI_CNT = 'I'				# SEQ - TI field
-    IP_ID_CI_CNT = 'I'			    # T5-7 - CI field
-    IP_ID_II_CNT = 'I'				# IE - II field
-    IP_ID_tmp = 1
+        # Timestamp in reply packets
+        self.TCP_Timestamp_tmp = 1
+        # Timestamp counter 1... if TS = U
+        self.TCP_TS_CNT = 1
 
-    # Timestamp in reply packets
-    TCP_Timestamp_tmp = 1
-    # Timestamp counter 1... if TS = U
-    TCP_TS_CNT = 1
+        # define which probes to send
+        self.PROBES_2_SEND = {
+            'P1': 1,
+            'P2': 1,
+            'P3': 1,
+            'P4': 1,
+            'P5': 0,  # if no WIN and OPS probe test,  set to 0
+            'P6': 0,  # if no WIN and OPS probe test,  set to 0
+            'ECN': 0,
+            'T2': 0,
+            'T3': 0,
+            'T4': 0,
+            'T5': 1,
+            'T6': 1,
+            'T7': 1,
+            'IE': 1,
+            'U1': 1
+        }
 
-    # define which probes to send
-    PROBES_2_SEND = {
-        'P1': 1,
-        'P2': 1,
-        'P3': 1,
-        'P4': 1,
-        'P5': 0,  # if no WIN and OPS probe test,  set to 0
-        'P6': 0,  # if no WIN and OPS probe test,  set to 0
-        'ECN': 0,
-        'T2': 0,
-        'T3': 0,
-        'T4': 0,
-        'T5': 1,
-        'T6': 1,
-        'T7': 1,
-        'IE': 1,
-        'U1': 1
-    }
+        # set TCP FLG
+        self.TCP_FLAGS = {
+            'SEQ': 'SA',
+            'ECN': '0',
+            # Y	set - 0x052 = ECE, SYN
+            # N	set - 0x02  = SYN
+            # S	set - 0x0C2 = CWR, ECE, SYN
+            # O	set - 0x052 = CWR, SYN
+            'T2': 0,
+            'T3': 0,
+            'T4': 0,
+            'T5': 'RA',
+            'T6': 'R',
+            'T7': 'RA'
+        }
 
-    # set TCP FLG
-    TCP_FLAGS = {
-        'SEQ': 'SA',
-        'ECN': '0',
-        # Y	set - 0x052 = ECE, SYN
-        # N	set - 0x02  = SYN
-        # S	set - 0x0C2 = CWR, ECE, SYN
-        # O	set - 0x052 = CWR, SYN
-        'T2': 0,
-        'T3': 0,
-        'T4': 0,
-        'T5': 'RA',
-        'T6': 'R',
-        'T7': 'RA'
-    }
+        # TCP Sequence Number
+        # A+, A, 0 = Z, O = something else
+        self.TCP_SEQ_NR = {
+            'T2': 0,
+            'T3': 0,
+            'T4': 0,
+            'T5': 0,
+            'T6': 'A',
+            'T7': 0
+        }
 
-    # TCP Sequence Number
-    # A+, A, 0 = Z, O = something else
-    TCP_SEQ_NR = {
-        'T2': 0,
-        'T3': 0,
-        'T4': 0,
-        'T5': 0,
-        'T6': 'A',
-        'T7': 0
-    }
+        # TCP Acknowledgment Number
+        # S+, S, 0 = Z,  O = something else
+        self.TCP_ACK_NR = {
+            'T2': 0,
+            'T3': 0,
+            'T4': 0,
+            'T5': 'S+',
+            'T6': 0,
+            'T7': 'S'
+        }
 
-    # TCP Acknowledgment Number
-    # S+, S, 0 = Z,  O = something else
-    TCP_ACK_NR = {
-        'T2': 0,
-        'T3': 0,
-        'T4': 0,
-        'T5': 'S+',
-        'T6': 0,
-        'T7': 'S'
-    }
+        # Set TCP Options, Window Size, IP DF-bit and TCP data
+        self.O_W_DF_RD_PARAM = {
+            'P1': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'P2': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'P3': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'P4': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'P5': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'P6': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'ECN': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'T2': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'T3': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'T4': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'T5': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'T6': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'T7': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
+            'U1': {'DF': 0},
+            'IE': {'DF': 0}
+        }
 
-    # Set TCP Options, Window Size, IP DF-bit and TCP data
-    O_W_DF_RD_PARAM = {
-        'P1': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'P2': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'P3': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'P4': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'P5': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'P6': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'ECN': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'T2': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'T3': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'T4': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'T5': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'T6': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'T7': {'O': 0, 'W': 0, 'DF': 0, 'RD': 0},
-        'U1': {'DF': 0},
-        'IE': {'DF': 0}
-    }
+        # U1 probe (UDP)
+        # Clear data from UDP reply
+        self.CL_UDP_DATA = 1
+        # Set normally unused, second 4 bytes of ICMP header
+        self.UN = 0
 
-    # U1 probe (UDP)
-    # Clear data from UDP reply
-    CL_UDP_DATA = 1
-    # Set normally unused, second 4 bytes of ICMP header
-    UN = 0
+        # IE probe
+        # 0 =^ Z
+        # S =^ same as from probes
+        self.ICMP_CODE = 'S'
 
-    # IE probe
-    # 0 =^ Z
-    # S =^ same as from probes
-    ICMP_CODE = 'S'
+
+def flush_tables():
+    os.system('iptables -F')
 
 
 def _build_crc_tables(crc32_table, crc32_reverse):
@@ -327,12 +335,12 @@ class ReplyPacket(object):
     IP packet
     Setting the IP fields
     """
-    def __init__(self, pkt, OSPattern):
+    def __init__(self, pkt, os_pattern):
         self.ip = IP()
         self.ip.src = pkt[IP].dst
         self.ip.dst = pkt[IP].src
-        self.OSPattern = OSPattern
-        self.ip.ttl = self.OSPattern.TTL
+        self.os_pattern = os_pattern
+        self.ip.ttl = self.os_pattern.TTL
 
     def set_DF(self, df):
         if df:
@@ -345,16 +353,16 @@ class ReplyPacket(object):
     def set_IP_ID(self, ip_id):
 
         if ip_id == 'I':
-            OSPattern.IP_ID_tmp += 1
-            self.ip.id = OSPattern.IP_ID_tmp
+            self.os_pattern.IP_ID_tmp += 1
+            self.ip.id = self.os_pattern.IP_ID_tmp
 
         elif ip_id == 'RI':
-            OSPattern.IP_ID_tmp += 1001
-            self.ip.id = OSPattern.IP_ID_tmp
+            self.os_pattern.IP_ID_tmp += 1001
+            self.ip.id = self.os_pattern.IP_ID_tmp
 
         elif ip_id == 'Z':
-            OSPattern.IP_ID_tmp += 0
-            self.ip.id = OSPattern.IP_ID_tmp
+            self.os_pattern.IP_ID_tmp += 0
+            self.ip.id = self.os_pattern.IP_ID_tmp
         else:
             self.ip.id = ip_id
 
@@ -365,8 +373,8 @@ class TCPPacket(ReplyPacket):
     ----------------------------------------------------------
     setting the TCP fields
     """
-    def __init__(self, pkt, OSPattern):
-        ReplyPacket.__init__(self, pkt, OSPattern)
+    def __init__(self, pkt, os_pattern):
+        ReplyPacket.__init__(self, pkt, os_pattern)
         self.pkt = pkt
         self.tcp = TCP()
         self.tcp.sport = pkt[TCP].dport
@@ -385,22 +393,23 @@ class TCPPacket(ReplyPacket):
             # The function of the calculation of the TCP Sequence Number belongs to honed
             # https://github.com/DataSoft/Honeyd/blob/master/personality.c   -  line 521 ff
 
-            if 0 < self.OSPattern.GCD < 9:
-                temp = random.randint(0, self.OSPattern.SEQ_std_dev)
+            if 0 < self.os_pattern.GCD < 9:
+                temp = random.randint(0, self.os_pattern.SEQ_std_dev)
 
-                ISN_delta = self.OSPattern.SEQNr_mean
+                ISN_delta = self.os_pattern.SEQNr_mean
 
-                while (self.OSPattern.SEQ_MAX < (self.OSPattern.SEQNr_mean + temp)) or (self.OSPattern.SEQ_MIN > (self.OSPattern.SEQNr_mean + temp)):
-                    temp = random.randint(0, self.OSPattern.SEQ_std_dev)
+                while (self.os_pattern.SEQ_MAX < (self.os_pattern.SEQNr_mean + temp)) or \
+                        (self.os_pattern.SEQ_MIN > (self.os_pattern.SEQNr_mean + temp)):
+                    temp = random.randint(0, self.os_pattern.SEQ_std_dev)
 
                 ISN_delta += temp
 
-                self.OSPattern.TCP_SEQ_NR_tmp = (self.OSPattern.TCP_SEQ_NR_tmp + ISN_delta) % 2**32
-                self.tcp.seq = self.OSPattern.TCP_SEQ_NR_tmp
+                self.os_pattern.TCP_SEQ_NR_tmp = (self.os_pattern.TCP_SEQ_NR_tmp + ISN_delta) % 2**32
+                self.tcp.seq = self.os_pattern.TCP_SEQ_NR_tmp
 
             else:
-                self.OSPattern.TCP_SEQ_NR_tmp = (self.OSPattern.TCP_SEQ_NR_tmp + self.OSPattern.SEQNr_mean) % 2**32
-                self.tcp.seq = self.OSPattern.TCP_SEQ_NR_tmp
+                self.os_pattern.TCP_SEQ_NR_tmp = (self.os_pattern.TCP_SEQ_NR_tmp + self.os_pattern.SEQNr_mean) % 2**32
+                self.tcp.seq = self.os_pattern.TCP_SEQ_NR_tmp
 
         elif seqn == 'A':
             self.tcp.seq = self.pkt[TCP].ack
@@ -447,8 +456,8 @@ class ICMPPacket(ReplyPacket):
     """
     ICMP packet
     """
-    def __init__(self, pkt, OSPattern, package_type):
-        ReplyPacket.__init__(self, pkt, OSPattern)
+    def __init__(self, pkt, os_pattern, package_type):
+        ReplyPacket.__init__(self, pkt, os_pattern)
         self.icmp = ICMP()
         self.pkt = pkt
 
@@ -463,7 +472,7 @@ class ICMPPacket(ReplyPacket):
         elif package_type == 3:
             self.icmp.type = 3
             self.icmp.code = 3
-            self.icmp.unused = OSPattern.UN
+            self.icmp.unused = os_pattern.UN
 
     def set_ICMP_code(self, icmpc):
         self.icmp.code = icmpc
@@ -481,13 +490,13 @@ class ICMPPacket(ReplyPacket):
             send(self.ip/self.icmp/self.pkt, verbose=0)
 
 
-def send_TCP_reply(pkt, OSPattern, O_W_DF_RD_PARAM, flags, ipid=0, seqn='O', ack='S+'):
+def send_TCP_reply(pkt, os_pattern, O_W_DF_RD_PARAM, flags, ipid=0, seqn='O', ack='S+'):
     """
     Send TCP reply packet
     following parameter are optional: ipid, seqn, ack,
     """
     # create reply packet and set flags
-    tcp_rpl = TCPPacket(pkt, OSPattern)
+    tcp_rpl = TCPPacket(pkt, os_pattern)
 
     # set flags depending on probe given
     tcp_rpl.set_TCP_Flags(flags)
@@ -511,24 +520,24 @@ def send_TCP_reply(pkt, OSPattern, O_W_DF_RD_PARAM, flags, ipid=0, seqn='O', ack
     tcp_rpl.send_packet()
 
 
-def send_ICMP_reply(pkt, ICMP_type, OSPattern, O_W_DF_RD_PARAM):
+def send_ICMP_reply(pkt, ICMP_type, os_pattern, O_W_DF_RD_PARAM):
     """
     Send ICMP reply packet
     """
     # create reply packet and set flags
-    icmp_rpl = ICMPPacket(pkt, OSPattern, ICMP_type)
+    icmp_rpl = ICMPPacket(pkt, os_pattern, ICMP_type)
 
     # set ICMP header fields
     icmp_rpl.set_DF(O_W_DF_RD_PARAM['DF'])
 
     # ICMP type = 0  =^ echo reply
     if ICMP_type == 0:
-        icmp_rpl.set_IP_ID(OSPattern.IP_ID_II_CNT)
+        icmp_rpl.set_IP_ID(os_pattern.IP_ID_II_CNT)
         # set ICMP code field
-        if OSPattern.ICMP_CODE == 'S':
+        if os_pattern.ICMP_CODE == 'S':
             icmp_rpl.set_ICMP_code(pkt[ICMP].code)
         else:
-            icmp_rpl.set_ICMP_code(OSPattern.ICMP_CODE)
+            icmp_rpl.set_ICMP_code(os_pattern.ICMP_CODE)
 
         # send ICMP reply
         icmp_rpl.send_packet()
@@ -538,7 +547,7 @@ def send_ICMP_reply(pkt, ICMP_type, OSPattern, O_W_DF_RD_PARAM):
         icmp_rpl.set_IP_ID(1)
 
         # some OS reply with no data returned
-        if OSPattern.CL_UDP_DATA:
+        if os_pattern.CL_UDP_DATA:
             icmp_rpl.clr_payload()
 
         # send ICMP Port Unreachable
@@ -575,87 +584,87 @@ def check_TCP_Nmap_match(pkt, nfq_packet, options_2_cmp, TCP_wsz_flags, IP_flags
     return 0
 
 
-def check_TCP_probes(pkt, nfq_packet, OSPattern):
+def check_TCP_probes(pkt, nfq_packet, os_pattern):
     # Check TCP Probes
 
     # calculate Timestamp for TCP header
-    OSPattern.TCP_Timestamp_tmp += OSPattern.TCP_TS_CNT
+    os_pattern.TCP_Timestamp_tmp += os_pattern.TCP_TS_CNT
 
     # Check if the packet is a probe and if a reply should be sent
 
     # SEQ, OPS, WIN, and T1 - Sequence generation
     # 6 Probes sent
     if check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P1'], NMAP_PROBE_TCP_ATTR['P1']):
-        if OSPattern.PROBES_2_SEND['P1']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['P1'], OSPattern.TCP_FLAGS['SEQ'], OSPattern.IP_ID_TI_CNT)
+        if os_pattern.PROBES_2_SEND['P1']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['P1'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             print "TCP Probe #1"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P2'], NMAP_PROBE_TCP_ATTR['P2']):
-        if OSPattern.PROBES_2_SEND['P2']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['P2'], OSPattern.TCP_FLAGS['SEQ'], OSPattern.IP_ID_TI_CNT)
+        if os_pattern.PROBES_2_SEND['P2']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['P2'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             print "TCP Probe #2"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P3'], NMAP_PROBE_TCP_ATTR['P3']):
-        if OSPattern.PROBES_2_SEND['P3']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['P3'], OSPattern.TCP_FLAGS['SEQ'], OSPattern.IP_ID_TI_CNT)
+        if os_pattern.PROBES_2_SEND['P3']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['P3'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             print "TCP Probe #3"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P4'], NMAP_PROBE_TCP_ATTR['P4']):
-        if OSPattern.PROBES_2_SEND['P4']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['P4'], OSPattern.TCP_FLAGS['SEQ'], OSPattern.IP_ID_TI_CNT)
+        if os_pattern.PROBES_2_SEND['P4']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['P4'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             print "TCP Probe #4"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P5'], NMAP_PROBE_TCP_ATTR['P5']):
-        if OSPattern.PROBES_2_SEND['P5']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['P5'], OSPattern.TCP_FLAGS['SEQ'], OSPattern.IP_ID_TI_CNT)
+        if os_pattern.PROBES_2_SEND['P5']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['P5'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             print "TCP Probe #5"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P6'], NMAP_PROBE_TCP_ATTR['P6']):
-        if OSPattern.PROBES_2_SEND['P6']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['P6'], OSPattern.TCP_FLAGS['SEQ'], OSPattern.IP_ID_TI_CNT)
+        if os_pattern.PROBES_2_SEND['P6']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['P6'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             print "TCP Probe #6"
 
     # ECN
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['ECN'], NMAP_PROBE_TCP_ATTR['ECN'], ):
-        if OSPattern.PROBES_2_SEND['ECN']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['ECN'], OSPattern.TCP_FLAGS['ECN'], OSPattern.IP_ID_TI_CNT, ECN_URGT_PTR)
+        if os_pattern.PROBES_2_SEND['ECN']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['ECN'], os_pattern.TCP_FLAGS['ECN'], os_pattern.IP_ID_TI_CNT, ECN_URGT_PTR)
             print "TCP Probe #ECN"
 
     # T2-T7
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T2-T6'], NMAP_PROBE_TCP_ATTR['T2'], NMAP_PROBE_IP_ATTR['T2']):
-        if OSPattern.PROBES_2_SEND['T2']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['T2'], OSPattern.TCP_FLAGS['T2'], 0, OSPattern.TCP_SEQ_NR['T2'], OSPattern.TCP_ACK_NR['T2'])
+        if os_pattern.PROBES_2_SEND['T2']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['T2'], os_pattern.TCP_FLAGS['T2'], 0, os_pattern.TCP_SEQ_NR['T2'], os_pattern.TCP_ACK_NR['T2'])
             print "TCP Probe #T2"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T2-T6'], NMAP_PROBE_TCP_ATTR['T3']):
-        if OSPattern.PROBES_2_SEND['T3']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['T3'], OSPattern.TCP_FLAGS['T3'], 0, OSPattern.TCP_SEQ_NR['T3'], OSPattern.TCP_ACK_NR['T3'])
+        if os_pattern.PROBES_2_SEND['T3']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['T3'], os_pattern.TCP_FLAGS['T3'], 0, os_pattern.TCP_SEQ_NR['T3'], os_pattern.TCP_ACK_NR['T3'])
             print "TCP Probe #T3"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T2-T6'], NMAP_PROBE_TCP_ATTR['T4'], NMAP_PROBE_IP_ATTR['T4']):
-        if OSPattern.PROBES_2_SEND['T4']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['T4'], OSPattern.TCP_FLAGS['T4'], 0, OSPattern.TCP_SEQ_NR['T4'], OSPattern.TCP_ACK_NR['T4'])
+        if os_pattern.PROBES_2_SEND['T4']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['T4'], os_pattern.TCP_FLAGS['T4'], 0, os_pattern.TCP_SEQ_NR['T4'], os_pattern.TCP_ACK_NR['T4'])
             print "TCP Probe #T4"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T2-T6'], NMAP_PROBE_TCP_ATTR['T5']):
-        if OSPattern.PROBES_2_SEND['T5']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['T5'], OSPattern.TCP_FLAGS['T5'], OSPattern.IP_ID_CI_CNT, OSPattern.TCP_SEQ_NR['T5'], OSPattern.TCP_ACK_NR['T5'])
+        if os_pattern.PROBES_2_SEND['T5']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['T5'], os_pattern.TCP_FLAGS['T5'], os_pattern.IP_ID_CI_CNT, os_pattern.TCP_SEQ_NR['T5'], os_pattern.TCP_ACK_NR['T5'])
             print "TCP Probe #T5"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T2-T6'], NMAP_PROBE_TCP_ATTR['T6'], NMAP_PROBE_IP_ATTR['T6']):
-        if OSPattern.PROBES_2_SEND['T6']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['T6'], OSPattern.TCP_FLAGS['T6'], OSPattern.IP_ID_CI_CNT, OSPattern.TCP_SEQ_NR['T6'], OSPattern.TCP_ACK_NR['T6'])
+        if os_pattern.PROBES_2_SEND['T6']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['T6'], os_pattern.TCP_FLAGS['T6'], os_pattern.IP_ID_CI_CNT, os_pattern.TCP_SEQ_NR['T6'], os_pattern.TCP_ACK_NR['T6'])
             print "TCP Probe #T6"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T7'], NMAP_PROBE_TCP_ATTR['T7']):
-        if OSPattern.PROBES_2_SEND['T7']:
-            send_TCP_reply(pkt, OSPattern, OSPattern.O_W_DF_RD_PARAM['T7'], OSPattern.TCP_FLAGS['T7'], OSPattern.IP_ID_CI_CNT, OSPattern.TCP_SEQ_NR['T7'], OSPattern.TCP_ACK_NR['T7'])
+        if os_pattern.PROBES_2_SEND['T7']:
+            send_TCP_reply(pkt, os_pattern, os_pattern.O_W_DF_RD_PARAM['T7'], os_pattern.TCP_FLAGS['T7'], os_pattern.IP_ID_CI_CNT, os_pattern.TCP_SEQ_NR['T7'], os_pattern.TCP_ACK_NR['T7'])
             print "TCP Probe #T7"
     else:
         forward_packet(nfq_packet)
 
 
-def check_ICMP_probes(pkt, nfq_packet, OSPattern):
+def check_ICMP_probes(pkt, nfq_packet, os_pattern):
     """
     Identify the ICMP based probes
     and reply with a faked packet if needed
@@ -666,10 +675,10 @@ def check_ICMP_probes(pkt, nfq_packet, OSPattern):
         if (pkt[ICMP].seq == 295 and pkt[IP].flags == 0x02 and len(pkt[ICMP].payload) == 120) or (pkt[ICMP].seq == 296 and pkt[IP].tos == 0x04 and len(pkt[ICMP].payload) == 150):
             drop_packet(nfq_packet)
 
-            if OSPattern.PROBES_2_SEND["IE"]:
+            if os_pattern.PROBES_2_SEND["IE"]:
                 # ICMP type = 0  =^ echo reply
                 ICMP_type = 0
-                send_ICMP_reply(pkt, ICMP_type, OSPattern, OSPattern.O_W_DF_RD_PARAM['IE'])
+                send_ICMP_reply(pkt, ICMP_type, os_pattern, os_pattern.O_W_DF_RD_PARAM['IE'])
                 print "IE Probe"
         else:
             forward_packet(nfq_packet)
@@ -677,7 +686,7 @@ def check_ICMP_probes(pkt, nfq_packet, OSPattern):
         forward_packet(nfq_packet)
 
 
-def check_UDP_probe(pkt, nfq_packet,  OSPattern):
+def check_UDP_probe(pkt, nfq_packet,  os_pattern):
     """
     Identify the UDP based probe
     and reply with a faked reply if needed
@@ -685,11 +694,11 @@ def check_UDP_probe(pkt, nfq_packet,  OSPattern):
     if pkt[IP].id == 0x1042 and pkt[UDP].payload.load[0] == "C" and pkt[UDP].payload.load[1] == "C" and pkt[UDP].payload.load[2] == "C":
         drop_packet(nfq_packet)
 
-        if OSPattern.PROBES_2_SEND["U1"]:
+        if os_pattern.PROBES_2_SEND["U1"]:
             # create reply packet (ICMP port unreachable)
             # ICMP type = 3  =^ destination unreable
             ICMP_type = 3
-            send_ICMP_reply(pkt, ICMP_type, OSPattern, OSPattern.O_W_DF_RD_PARAM['U1'])
+            send_ICMP_reply(pkt, ICMP_type, os_pattern, os_pattern.O_W_DF_RD_PARAM['U1'])
             print "U1 Probe"
     else:
         forward_packet(nfq_packet)
@@ -700,8 +709,8 @@ class ProcessPKT(object):
     Do a separation according to the TCP/IP trasport layer
     check if the packet is a nmap probe and send OS specific replies
     """
-    def __init__(self, OSPattern):
-        self.OSPattern = OSPattern
+    def __init__(self, os_pattern):
+        self.os_pattern = os_pattern
 
     def start(self, _, nfq_packet):
         # Get packetdata from nfqueue packet and build a Scapy packet
@@ -710,18 +719,18 @@ class ProcessPKT(object):
         # check TCP packets
         if pkt.haslayer(TCP):
             try:
-                check_TCP_probes(pkt, nfq_packet, self.OSPattern)
+                check_TCP_probes(pkt, nfq_packet, self.os_pattern)
             except KeyboardInterrupt:
                 print " Press Ctrl+C to exit"
-                os.system('iptables -F')
+                flush_tables()
 
         # check ICMP packets
         elif pkt.haslayer(ICMP):
-            check_ICMP_probes(pkt, nfq_packet, self.OSPattern)
+            check_ICMP_probes(pkt, nfq_packet, self.os_pattern)
 
         # check UDP packets
         elif pkt.haslayer(UDP):
-            check_UDP_probe(pkt, nfq_packet, self.OSPattern)
+            check_UDP_probe(pkt, nfq_packet, self.os_pattern)
 
         # don't analyse it, continue to destination
         else:
@@ -730,12 +739,15 @@ class ProcessPKT(object):
 
 class OSFuscation(object):
     @classmethod
-    def run(cls):
+    def run(cls, template_path=''):
 
         # check if root
         if not os.geteuid() == 0:
             exit("\nPlease run as root\n")
+        os_pattern = get_os_pattern(template_path)
 
+        # Flush the IP tables first
+        flush_tables()
         # Configure NFQUEUE target
         # Capture incoming packets and put in nfqueue 1
         os.system('iptables -A INPUT -j NFQUEUE --queue-num 0')
@@ -746,7 +758,7 @@ class OSFuscation(object):
 
         # creation of the netlink socket, bind to a family and a queue number
         q.bind(socket.AF_INET)
-        q.set_callback(ProcessPKT(OSPattern).start)
+        q.set_callback(ProcessPKT(os_pattern).start)
         q.create_queue(0)
 
         # run endless loop for packet manipulation
@@ -757,7 +769,7 @@ class OSFuscation(object):
             # on exit clean up
             q.unbind(socket.AF_INET)
             q.close()
-            os.system('iptables -F')
+            flush_tables()
             sys.exit('Exiting...')
 
 

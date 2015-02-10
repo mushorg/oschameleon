@@ -139,24 +139,10 @@ class OSPatternTemplate(object):
         # ISR Initial SEQNr counter rate
         self.ISR_MIN = 0x94
         self.ISR_MAX = 0x9E
-        self.ISR_mean = (self.ISR_MIN + self.ISR_MAX) / 2
 
         # SP (standard deviation of Initial SEQNr)
         self.SP_MIN = 0
         self.SP_MAX = 5
-        self.SP_mean = (self.SP_MIN + self.SP_MAX) / 2
-
-        if self.GCD > 9:
-            self.SEQNr_mean = self.GCD
-        else:
-            self.SEQNr_mean = math.trunc(round((2 ** (self.ISR_mean/8))*0.1))
-            self.SEQ_MIN = math.trunc(round((2 ** (self.ISR_MIN/8))*0.1))
-            self.SEQ_MAX = math.trunc(round((2 ** (self.ISR_MAX/8))*0.1))
-
-            self.SEQ_std_dev = math.trunc(round((2 ** (self.SP_mean/8))))
-
-            self.SEQ_MAX += (self.SEQ_std_dev/8)
-            self.SEQ_MIN -= (self.SEQ_std_dev/8)
 
         # start value of SEQNR
         self.TCP_SEQ_NR_tmp = random.randint(1, 10)
@@ -262,6 +248,37 @@ class OSPatternTemplate(object):
         # 0 =^ Z
         # S =^ same as from probes
         self.ICMP_CODE = 'S'
+
+    @property
+    def ISR_mean(self):
+        return (self.ISR_MIN + self.ISR_MAX) / 2
+
+    @property
+    def SEQNr_mean(self):
+        if self.GCD > 9:
+            return self.GCD
+        else:
+            return math.trunc(round((2 ** (self.ISR_mean/8))*0.1))
+
+    @property
+    def SP_mean(self):
+        return (self.SP_MIN + self.SP_MAX) / 2
+
+    @property
+    def SEQ_std_dev(self):
+        return math.trunc(round((2 ** (self.SP_mean/8))))
+
+    @property
+    def SEQ_MIN(self):
+        _SEQ_MIN = math.trunc(round((2 ** (self.ISR_MIN/8))*0.1))
+        _SEQ_MIN -= (self.SEQ_std_dev/8)
+        return _SEQ_MIN
+
+    @property
+    def SEQ_MAX(self):
+        _SEQ_MAX = math.trunc(round((2 ** (self.ISR_MAX/8))*0.1))
+        _SEQ_MAX += (self.SEQ_std_dev/8)
+        return _SEQ_MAX
 
 
 def flush_tables():

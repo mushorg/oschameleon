@@ -27,7 +27,6 @@ def get_os_pattern(fprint_template):
 
     for line in data:
         line = line.strip()
-        print(line)
         category, result = line.split('(', 1)
         result = result[:-1]
         fp[category] = dict()
@@ -37,17 +36,12 @@ def get_os_pattern(fprint_template):
                 val = random.choice(val.split('|'))
             fp[category][key] = val
 
-    pprint(fp)
-
     os_pattern.GCD = _str2int(fp['SEQ']['GCD'])
     os_pattern.SP_MIN, os_pattern.SP_MAX = _parse_range(fp['SEQ']['SP'])
     os_pattern.ISR_MIN, os_pattern.ISR_MAX = _parse_range(fp['SEQ']['ISR'])
     os_pattern.IP_ID_TI_CNT = fp['SEQ']['TI']
     os_pattern.IP_ID_CI_CNT = fp['SEQ']['CI']
     os_pattern.IP_ID_TI_CNT = fp['SEQ']['II']
-
-    for attr in dir(os_pattern):
-        print "obj.%s = %s" % (attr, getattr(os_pattern, attr))
 
     return os_pattern
 

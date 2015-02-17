@@ -12,14 +12,8 @@ import oschameleon.osfuscation
 
 def root_process():
     print("Child: Running as {0}/{1}.".format(pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
-    retries = 0
-    data = None
-    while True and retries < 3:
-        try:
-            data = oschameleon.osfuscation.OSFuscation.run(args.template)
-        except Exception as e:
-            retries += 1
-            print e, data
+    data = oschameleon.osfuscation.OSFuscation.run(args.template)
+    print 'OSFuscation return value', data
 
 
 def drop_privileges(uid_name='nobody', gid_name='nogroup'):

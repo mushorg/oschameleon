@@ -12,7 +12,14 @@ import oschameleon.osfuscation
 
 def root_process():
     print("Child: Running as {0}/{1}.".format(pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
-    oschameleon.osfuscation.OSFuscation.run(args.template)
+    retries = 0
+    data = None
+    while True and retries < 3:
+        try:
+            data = oschameleon.osfuscation.OSFuscation.run(args.template)
+        except Exception as e:
+            retries += 1
+            print e, data
 
 
 def drop_privileges(uid_name='nobody', gid_name='nogroup'):
@@ -23,11 +30,12 @@ def drop_privileges(uid_name='nobody', gid_name='nogroup'):
     pid = gevent.fork()
     if pid == 0:
         # child
+        print 'starting child process'
         child_process = gevent.spawn(root_process)
-        try:
-            child_process.join()
-        except KeyboardInterrupt:
-            oschameleon.osfuscation.flush_tables()
+        child_process.join()
+        print 'Child done:', child_process.successful()
+        oschameleon.osfuscation.flush_tables()
+        print 'Child exit'
     else:
         # parent
         os.setgid(wanted_gid)
@@ -38,6 +46,7 @@ def drop_privileges(uid_name='nobody', gid_name='nogroup'):
         while True:
             try:
                 gevent.sleep(1)
+                print 'Parent: ping'
             except KeyboardInterrupt:
                 break
 
@@ -49,4 +58,5 @@ if __name__ == '__main__':
     try:
         drop_privileges()
     except KeyboardInterrupt:
+        oschameleon.osfuscation.flush_tables()
         print "bye"

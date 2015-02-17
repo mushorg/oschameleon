@@ -729,17 +729,13 @@ class ProcessPKT(object):
     def __init__(self, os_pattern):
         self.os_pattern = os_pattern
 
-    def start(self, _, nfq_packet):
+    def callback(self, _, nfq_packet):
         # Get packetdata from nfqueue packet and build a Scapy packet
         pkt = IP(nfq_packet.get_data())
 
         # check TCP packets
         if pkt.haslayer(TCP):
-            try:
-                check_TCP_probes(pkt, nfq_packet, self.os_pattern)
-            except KeyboardInterrupt:
-                print " Press Ctrl+C to exit"
-                flush_tables()
+            check_TCP_probes(pkt, nfq_packet, self.os_pattern)
 
         # check ICMP packets
         elif pkt.haslayer(ICMP):
@@ -752,6 +748,7 @@ class ProcessPKT(object):
         # don't analyse it, continue to destination
         else:
             forward_packet(nfq_packet)
+        return 0
 
 
 class OSFuscation(object):
@@ -771,23 +768,25 @@ class OSFuscation(object):
 
         # creation of a new queue object
         q = nfqueue.queue()
-        q.open()
+        q.set_callback(ProcessPKT(os_pattern).callback)
+        q.fast_open(0, socket.AF_INET)
 
-        # creation of the netlink socket, bind to a family and a queue number
-        q.bind(socket.AF_INET)
-        q.set_callback(ProcessPKT(os_pattern).start)
-        q.create_queue(0)
+        print q.set_queue_maxlen(-1)
 
         # run endless loop for packet manipulation
         try:
-            q.try_run()
+            ret = q.try_run()
+            fd = q.get_fd()
+            if fd != 0:
+                raise Exception('Queue error: {}'.format(fd))
         except KeyboardInterrupt:
-
             # on exit clean up
             q.unbind(socket.AF_INET)
             q.close()
             flush_tables()
-            sys.exit('Exiting...')
+            print 'Exiting...'
+        else:
+            return ret
 
 
 if __name__ == '__main__':

@@ -41,10 +41,10 @@ import random
 import math
 import struct
 import os
-import sys
 import socket
 
 import nfqueue
+import gevent
 
 # import needed Scapy modules
 import logging
@@ -752,6 +752,12 @@ class ProcessPKT(object):
 
 
 class OSFuscation(object):
+
+    @classmethod
+    def worker(cls, queue):
+        while True:
+            queue.process_pending(5)
+
     @classmethod
     def run(cls, template_path=''):
 
@@ -770,23 +776,20 @@ class OSFuscation(object):
         q = nfqueue.queue()
         q.set_callback(ProcessPKT(os_pattern).callback)
         q.fast_open(0, socket.AF_INET)
+        q.set_queue_maxlen(-1)
 
-        print q.set_queue_maxlen(-1)
-
-        # run endless loop for packet manipulation
+        # process queue for packet manipulation
         try:
-            ret = q.try_run()
-            fd = q.get_fd()
-            if fd != 0:
-                raise Exception('Queue error: {}'.format(fd))
+            workers = list()
+            for i in range(2):
+                workers.append(gevent.spawn(cls.worker, q))
+            gevent.joinall(workers)
         except KeyboardInterrupt:
             # on exit clean up
             q.unbind(socket.AF_INET)
             q.close()
             flush_tables()
             print 'Exiting...'
-        else:
-            return ret
 
 
 if __name__ == '__main__':

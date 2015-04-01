@@ -1,3 +1,5 @@
+# Copyright (c) 2015 Lukas Rist
+
 import osfuscation
 from pprint import pprint
 import random

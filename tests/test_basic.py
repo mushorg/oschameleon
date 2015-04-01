@@ -1,5 +1,7 @@
 #!/usr/bin/python2.7
 
+# Copyright (c) 2015 Lukas Rist
+
 import unittest
 
 import oschameleon

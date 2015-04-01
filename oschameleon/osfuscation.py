@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright (C) 2013  Anton Hinterleitner <is111012@fhstp.ac.at>
+# Copyright (c) 2015 Anton Hinterleitner, Lukas Rist
 
 """
 Description: Fools the probes of nmap scanner

@@ -1,3 +1,5 @@
+# Copyright (c) 2015 Lukas Rist
+
 import gevent.monkey
 gevent.monkey.patch_all()
 

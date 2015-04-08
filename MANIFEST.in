@@ -2,5 +2,6 @@ recursive-exclude tests *
 include requirements.txt
 include README.rst
 include Changelog.txt
+include LICENSE.txt
 recursive-include oschameleon *
 recursive-exclude oschameleon *.pyc

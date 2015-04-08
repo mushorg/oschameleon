@@ -1,3 +1,8 @@
+OSChameleon 0.1.2 (release 2015-04-08)
+    * Multiple workers per queue
+    * Fingerprint as a parameter
+    * Released under MIT license
+
 OSChameleon 0.1.1 (release 2015-02-04)
     * Fixing import order of modules
 

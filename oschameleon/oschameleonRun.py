@@ -19,15 +19,15 @@ Log("oschameleon")
 
 class OSChameleon(object):
     def __init__(self, template=None, template_directory=None, args=None):
-        gevent.monkey.patch_all()
-
         self.parser = argparse.ArgumentParser(description='OSChameleon sample usage')
-        self.parser.add_argument('--template', metavar='template.txt', type=str, help='path to the fingerprint template', default="template/SIMATIC_300_PLC.txt")
-        self.parser.add_argument('--server', metavar='server ip for iptables', type=str, help='server ip for iptables', default='127.0.0.1')
-        self.parser.add_argument('--public_ip', metavar='running in production', default=False)
-        self.parser.add_argument('--interface', metavar='network interface', default='eth0')
-        self.parser.add_argument('--debug', metavar='verbose debugging output', default=False)
+        self.parser.add_argument('--template', metavar='template/SIMATIC_300_PLC.txt', type=str, help='path to the nmap fingerprint template', default="template/SIMATIC_300_PLC.txt")
+        self.parser.add_argument('--server', metavar='IP', type=str, help='server ip for iptables', default='127.0.0.1')
+        self.parser.add_argument('--public_ip', metavar='IP', help='running in production with public ip', default=False)
+        self.parser.add_argument('--interface', metavar='eth0', help='network interface', default='eth0')
+        self.parser.add_argument('--debug', metavar='True/False', help='verbose debugging output', default=False)
         self.args = self.parser.parse_args()
+
+        gevent.monkey.patch_all()
 
         if self.args.debug == 'True':
             self.args.debug = True

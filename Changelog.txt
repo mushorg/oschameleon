@@ -1,7 +1,3 @@
-OSChameleon 0.1.3 (release 2016-12-13)
-	* source restructered
-	* added tcp options and timestamp
-
 OSChameleon 0.1.2 (release 2015-04-08)
     * Multiple workers per queue
     * Fingerprint as a parameter

@@ -26,15 +26,15 @@ def drop_privileges(uid_name='nobody', gid_name='nogroup'):
     wanted_gid = grp.getgrnam(gid_name)[2]
 
     pid = gevent.fork()
-    #print "root_fork : drop_privil  :  pid   ",pid
+    # print "root_fork : drop_privil  :  pid   ",pid
     if pid == 0:
         # child
-        print  ('starting child process')
+        print ('starting child process')
         child_process = gevent.spawn(root_process)
         child_process.join()
-        print  ('Child done:', child_process.successful())
+        print ('Child done:', child_process.successful())
         flush_tables()
-        print  ('Child exit')
+        print ('Child exit')
     else:
         # parent
         os.setgid(wanted_gid)
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='OSChameleon sample usage')
     parser.add_argument('--template', metavar='template.txt', type=str, help='path to the fingerprint template')
     args = parser.parse_args()
-    if args.template == None:
+    if args.template is None:
         args.template = "template/SIMATIC_300_PLC.txt"
     try:
         drop_privileges()

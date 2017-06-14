@@ -45,9 +45,9 @@ import os
 import socket
 
 from parse_fp import get_os_pattern
-from scapy.all import IP, TCP, UDP, ICMP  # @UnresolvedImport 
-from scapy.config import conf  # @UnresolvedImport 
-from scapy.supersocket import L3RawSocket  # @UnresolvedImport 
+from scapy.all import IP, TCP, UDP, ICMP  # @UnresolvedImport
+from scapy.config import conf  # @UnresolvedImport
+from scapy.supersocket import L3RawSocket  # @UnresolvedImport
 import session
 from stack_packet.ICMP_ import check_ICMP_probes
 from stack_packet.TCP_ import check_TCP_probes
@@ -76,11 +76,10 @@ class ProcessPKT(object):
     Do a separation according to the TCP/IP trasport layer
     check if the packet is a nmap probe and send OS specific replies
     """
-    def __init__(self, os_pattern, session):
+    def __init__(self, os_pattern, session, debug):
         self.os_pattern = os_pattern
         self.session = session
-        
-        
+        self.debug = debug
 
     def callback(self, _, nfq_packet):
         # Get packetdata from nfqueue packet and build a Scapy packet
@@ -88,7 +87,7 @@ class ProcessPKT(object):
 
         # check TCP packets
         if pkt.haslayer(TCP):
-            check_TCP_probes(pkt, nfq_packet, self.os_pattern, self.session)
+            check_TCP_probes(pkt, nfq_packet, self.os_pattern, self.session, self.debug)
 
         # check ICMP packets
         elif pkt.haslayer(ICMP):
@@ -112,31 +111,29 @@ class OSFuscation(object):
             queue.process_pending(5)
 
     @classmethod
-    def run(cls, template_path='', server_ip=None):
+    def run(cls, public_ip, debug, template_path='', server_ip=None):
 
         # check if root
         if not os.geteuid() == 0:
             exit("\nPlease run as root\n")
-        os_pattern = get_os_pattern(template_path)
 
-        print '*' * 30
-        print os_pattern
-        print '*' * 30
+        os_pattern = get_os_pattern(template_path, debug)
+
+        if debug:
+            print '*' * 30
+            print os_pattern
+            print '*' * 30
 
         # Flush the IP tables first
         flush_tables()
-        
-        # just in case
-        if server_ip == "0":
-            server_ip = '46.228.199.135'
-           
+
         # set iptables rules
         rules(server_ip)
         session_ = session.get_Session()
 
         # creation of a new queue object
         q = nfqueue.queue()
-        q.set_callback(ProcessPKT(os_pattern, session_).callback)
+        q.set_callback(ProcessPKT(os_pattern, session_, debug).callback)
         q.fast_open(0, socket.AF_INET)
         q.set_queue_maxlen(-1)
 

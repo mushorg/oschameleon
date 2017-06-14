@@ -26,16 +26,16 @@ NMAP_PROBE_IP_ATTR = {
 ECN_URGT_PTR = 0xF7F5
 
 # The TCP Option fields in the Nmap probes
-NMAP_PROBE_TCP_OPTION = {
-    'P1': [('WScale', 10), ('NOP', None), ('MSS', 1460), ('Timestamp', (4294967295, 0)), ('SAckOK', '')],
-    'P2': [('MSS', 1400), ('WScale', 0), ('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('EOL', None)],
-    'P3': [('Timestamp', (4294967295, 0)), ('NOP', None), ('NOP', None), ('WScale', 5), ('NOP', None), ('MSS', 640)],
-    'P4': [('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('WScale', 10), ('EOL', None)],
-    'P5': [('MSS', 536), ('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('WScale', 10), ('EOL', None)],
-    'P6': [('MSS', 265), ('SAckOK', ''), ('Timestamp', (4294967295, 0))],
-    'ECN': [('WScale', 10), ('NOP', None), ('MSS', 1460), ('SAckOK', ''), ('NOP', None), ('NOP', None)],
-    'T2-T6': [('WScale', 10), ('NOP', None), ('MSS', 265), ('Timestamp', (4294967295, 0)), ('SAckOK', '')],
-    'T7': [('WScale', 15), ('NOP', None), ('MSS', 265), ('Timestamp', (4294967295, 0)), ('SAckOK', '')]}
+NMAP_PROBE_TCP_OPTION = {'P1': [('WScale', 10), ('NOP', None), ('MSS', 1460), ('Timestamp', (4294967295, 0)), ('SAckOK', '')],
+                         'P2': [('MSS', 1400), ('WScale', 0), ('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('EOL', None)],
+                         'P3': [('Timestamp', (4294967295, 0)), ('NOP', None), ('NOP', None), ('WScale', 5), ('NOP', None), ('MSS', 640)],
+                         'P4': [('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('WScale', 10), ('EOL', None)],
+                         'P5': [('MSS', 536), ('SAckOK', ''), ('Timestamp', (4294967295, 0)), ('WScale', 10), ('EOL', None)],
+                         'P6': [('MSS', 265), ('SAckOK', ''), ('Timestamp', (4294967295, 0))],
+                         'ECN': [('WScale', 10), ('NOP', None), ('MSS', 1460), ('SAckOK', ''), ('NOP', None), ('NOP', None)],
+                         'T2-T6': [('WScale', 10), ('NOP', None), ('MSS', 265), ('Timestamp', (4294967295, 0)), ('SAckOK', '')],
+                         'T7': [('WScale', 15), ('NOP', None), ('MSS', 265), ('Timestamp', (4294967295, 0)), ('SAckOK', '')]
+                         }
 
 # The TCP Window Size and TCP Flags wich have to match
 NMAP_PROBE_TCP_ATTR = {
@@ -53,7 +53,6 @@ NMAP_PROBE_TCP_ATTR = {
     'T6': {'WSZ': 32768, 'FLGS': 0x010},
     'T7': {'WSZ': 65535, 'FLGS': 0x029}
 }
-
 
 
 class TCPPacket(ReplyPacket):
@@ -144,7 +143,6 @@ class TCPPacket(ReplyPacket):
         send(self.ip / self.tcp, verbose=0)
 
 
-
 def check_TCP_Nmap_match(pkt, nfq_packet, INPUT_TCP_OPTIONS, EXPECTED_TCP_flags, IP_flags="no", urgt_ptr=0):
     """
     Check if the packet is a Nmap probe
@@ -155,7 +153,6 @@ def check_TCP_Nmap_match(pkt, nfq_packet, INPUT_TCP_OPTIONS, EXPECTED_TCP_flags,
     if pkt[TCP].window == EXPECTED_TCP_flags['WSZ'] and pkt[TCP].flags == EXPECTED_TCP_flags['FLGS'] and pkt[TCP].options == INPUT_TCP_OPTIONS:
 
         if IP_flags == "no":
-            
             if urgt_ptr == 0:
                 drop_packet(nfq_packet)
                 return 1
@@ -209,9 +206,13 @@ def send_TCP_reply(pkt, os_pattern, TCP_OPTIONS, flags, ipid=0, seqn='O', ack='S
 
     # send the TCP packet
     tcp_rpl.send_packet()
-    
 
-def check_TCP_probes(pkt, nfq_packet, os_pattern, session):
+
+def check_in_session(session, ip, debug):
+    session.in_session(ip, debug)
+
+
+def check_TCP_probes(pkt, nfq_packet, os_pattern, session, debug):
     # Check TCP Probes
 
     # Check if the packet is a probe and if a reply should be sent
@@ -220,86 +221,83 @@ def check_TCP_probes(pkt, nfq_packet, os_pattern, session):
     # 6 Probes sent
     if check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P1'], NMAP_PROBE_TCP_ATTR['P1']):
         if os_pattern.PROBES_2_SEND['P1']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['P1'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             # print "TCP Probe #1"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P2'], NMAP_PROBE_TCP_ATTR['P2']):
         if os_pattern.PROBES_2_SEND['P2']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['P2'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             # print "TCP Probe #2"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P3'], NMAP_PROBE_TCP_ATTR['P3']):
         if os_pattern.PROBES_2_SEND['P3']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['P3'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             # print "TCP Probe #3"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P4'], NMAP_PROBE_TCP_ATTR['P4']):
         if os_pattern.PROBES_2_SEND['P4']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['P4'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             # print "TCP Probe #4"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P5'], NMAP_PROBE_TCP_ATTR['P5']):
         if os_pattern.PROBES_2_SEND['P5']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['P5'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             # print "TCP Probe #5"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['P6'], NMAP_PROBE_TCP_ATTR['P6']):
         if os_pattern.PROBES_2_SEND['P6']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['P6'], os_pattern.TCP_FLAGS['SEQ'], os_pattern.IP_ID_TI_CNT)
             # print "TCP Probe #6"
-
 
     # ECN
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['ECN'], NMAP_PROBE_TCP_ATTR['ECN'],):
         if os_pattern.PROBES_2_SEND['ECN']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['ECN'], os_pattern.TCP_FLAGS['ECN'], os_pattern.IP_ID_TI_CNT, ECN_URGT_PTR)
             # print "TCP Probe #ECN"
-
 
     # T2-T7
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T2-T6'], NMAP_PROBE_TCP_ATTR['T2'], NMAP_PROBE_IP_ATTR['T2']):
         if os_pattern.PROBES_2_SEND['T2']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['T2'], os_pattern.TCP_FLAGS['T2'], 0, os_pattern.TCP_SEQ_NR['T2'], os_pattern.TCP_ACK_NR['T2'])
             # print "TCP Probe #T2"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T2-T6'], NMAP_PROBE_TCP_ATTR['T3']):
         if os_pattern.PROBES_2_SEND['T3']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['T3'], os_pattern.TCP_FLAGS['T3'], 0, os_pattern.TCP_SEQ_NR['T3'], os_pattern.TCP_ACK_NR['T3'])
             # print "TCP Probe #T3"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T2-T6'], NMAP_PROBE_TCP_ATTR['T4'], NMAP_PROBE_IP_ATTR['T4']):
         if os_pattern.PROBES_2_SEND['T4']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['T4'], os_pattern.TCP_FLAGS['T4'], 0, os_pattern.TCP_SEQ_NR['T4'], os_pattern.TCP_ACK_NR['T4'])
             # print "TCP Probe #T4"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T2-T6'], NMAP_PROBE_TCP_ATTR['T5']):
         if os_pattern.PROBES_2_SEND['T5']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['T5'], os_pattern.TCP_FLAGS['T5'], os_pattern.IP_ID_CI_CNT, os_pattern.TCP_SEQ_NR['T5'], os_pattern.TCP_ACK_NR['T5'])
             # print "TCP Probe #T5"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T2-T6'], NMAP_PROBE_TCP_ATTR['T6'], NMAP_PROBE_IP_ATTR['T6']):
         if os_pattern.PROBES_2_SEND['T6']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['T6'], os_pattern.TCP_FLAGS['T6'], os_pattern.IP_ID_CI_CNT, os_pattern.TCP_SEQ_NR['T6'], os_pattern.TCP_ACK_NR['T6'])
             # print "TCP Probe #T6"
 
     elif check_TCP_Nmap_match(pkt, nfq_packet, NMAP_PROBE_TCP_OPTION['T7'], NMAP_PROBE_TCP_ATTR['T7']):
         if os_pattern.PROBES_2_SEND['T7']:
-            session.in_session(pkt.src)
+            check_in_session(session, pkt.src, debug)
             send_TCP_reply(pkt, os_pattern, os_pattern.TCP_OPTIONS['T7'], os_pattern.TCP_FLAGS['T7'], os_pattern.IP_ID_CI_CNT, os_pattern.TCP_SEQ_NR['T7'], os_pattern.TCP_ACK_NR['T7'])
             # print "TCP Probe #T7"
-
 
     else:
         forward_packet(nfq_packet)

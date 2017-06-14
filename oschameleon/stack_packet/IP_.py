@@ -7,7 +7,7 @@ Created on 24.09.2016
 
 import struct
 
-from scapy.all import IP  # @UnresolvedImport 
+from scapy.all import IP  # @UnresolvedImport
 
 
 class ReplyPacket(object):
@@ -45,8 +45,7 @@ class ReplyPacket(object):
             self.ip.id = self.os_pattern.IP_ID_tmp
         else:
             self.ip.id = ip_id
-            
-            
+
 
 # \ End of CONSTANTS
 # ----------------------------------------------------------

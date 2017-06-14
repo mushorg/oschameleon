@@ -26,7 +26,8 @@ from requests.exceptions import Timeout, ConnectionError
 logger = logging.getLogger("oschameleon")
 
 
-urls_=["http://queryip.net/ip/", "http://ifconfig.me/ip"]
+urls_ = ["http://queryip.net/ip/", "http://ifconfig.me/ip"]
+
 
 class Ext_IP(object):
     def _verify_address(self, addr):
@@ -35,7 +36,6 @@ class Ext_IP(object):
             return True
         except (socket.error, UnicodeEncodeError, TypeError):
             return False
-
 
     def _fetch_data(self, urls):
         # we only want warning+ messages from the requests module
@@ -55,11 +55,10 @@ class Ext_IP(object):
                 logger.warning('Could not fetch public ip from %s', url)
         return None
 
-
     def get_ext_ip(self, config=None, urls=None):
         if not urls:
             urls = urls_
-        
+
         if config:
             urls = json.loads(config.get('fetch_public_ip', 'urls'))
         self.public_ip = self._fetch_data(urls)

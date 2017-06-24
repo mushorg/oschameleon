@@ -1,3 +1,6 @@
+.. image:: https://travis-ci.org/mushorg/oschameleon.svg?branch=master
+    :target: https://travis-ci.org/mushorg/oschameleon
+
 ===========
 OSChameleon
 ===========

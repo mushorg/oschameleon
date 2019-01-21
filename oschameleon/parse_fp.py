@@ -51,7 +51,7 @@ def _upper_end_hex(string, start):
     for i in range(start, len(string)):
         try:
             int(string[i], 16)
-        except ValueError, e:
+        except ValueError:
             return i
 
 

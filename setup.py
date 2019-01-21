@@ -6,7 +6,7 @@ setup(
     packages=["oschameleon", ],
     name=oschameleon.__title__,
     version=oschameleon.__version__,
-    author='Glastopf Project',
+    author='MushMush',
     author_email='glaslos@gmail.com',
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -22,7 +22,7 @@ setup(
     },
     include_package_data=True,
     long_description=open('README.rst').read(),
-    url='https://github.com/glastopf/oschameleon',
+    url='https://github.com/mushorg/oschameleon',
     description='OS Fingerprint Obfuscation for modern Linux Kernels',
     test_suite='nose.collector',
     tests_require="nose",

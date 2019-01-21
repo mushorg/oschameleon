@@ -1,19 +1,17 @@
 language: python
 python:
   - '2.7'
+
 virtualenv:
   system_site_packages: true
+
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get -qq install python-nfqueue
+
 install:
   - pip install -r requirements.txt
   - python2.7 setup.py install
+
 script:
   - nosetests -v
-notifications:
-  irc:
-    channels:
-      - irc.freenode.org#conpot-dev
-    use_notice: true
-    skip_join: true

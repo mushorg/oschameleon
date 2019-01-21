@@ -81,7 +81,7 @@ class ProcessPKT(object):
         self.session = session
         self.debug = debug
 
-    def callback(self, _, nfq_packet):
+    def callback(self, nfq_packet):
         # Get packetdata from nfqueue packet and build a Scapy packet
         pkt = IP(nfq_packet.get_data())
 
@@ -111,7 +111,7 @@ class OSFuscation(object):
             queue.process_pending(5)
 
     @classmethod
-    def run(cls, public_ip, debug, template_path='', server_ip=None):
+    def run(cls, debug=False, template_path='', server_ip=None):
 
         # check if root
         if not os.geteuid() == 0:

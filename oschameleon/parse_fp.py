@@ -359,4 +359,4 @@ def get_os_pattern(fprint_template, debug):
 
 
 if __name__ == '__main__':
-    print get_os_pattern('SIMATIC_300_PLC.txt')
+    print get_os_pattern('SIMATIC_300_PLC.txt', False)

@@ -14,11 +14,16 @@ from session.log import Log
 import session
 from stack_packet.helper import flush_tables
 
+import nfqueue
+
 Log("oschameleon")
 
 
 class OSChameleon(object):
     def __init__(self, template=None, template_directory=None, args=None):
+        if float(nfqueue.nfq_bindings_version()) < 0.6:
+            print("Found nfqueue version: {} but need at least 0.6, aborting.".format(nfqueue.nfq_bindings_version()))
+            exit(1)
         self.parser = argparse.ArgumentParser(description='OSChameleon sample usage')
         self.parser.add_argument('--template', metavar='template/SIMATIC_300_PLC.txt', type=str, help='path to the nmap fingerprint template', default="template/SIMATIC_300_PLC.txt")
         self.parser.add_argument('--server', metavar='IP', type=str, help='server ip for iptables', default='127.0.0.1')

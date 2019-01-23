@@ -11,12 +11,10 @@ OSChameleon
 Description: Fools the probes of nmap scanner
 
 Prerequisites:
- * Linux (tested with Debian)
+ * Linux (tested with Debian/Ubuntu)
  * Python 2.7+
- * python-nfqueue=0.5-1+b1 (apt-get install python-nfqueue)
- * python-scapy=2.2.0-1
- * python-gevent=1.0.1-2
- * python-netifaces
+ * python-nfqueue=0.6 (apt-get install python-nfqueue)
+ * requirements.txt
 
 Recorded logs are stored to:
     /var/log/honeypot/

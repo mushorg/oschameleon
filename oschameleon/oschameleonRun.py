@@ -49,7 +49,7 @@ class OSChameleon(object):
     def root_process(self):
         if self.args.debug:
             print("Child: Running as {0}/{1}.".format(pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
-        data = OSFuscation.run(self.args.public_ip, self.args.debug, self.args.template, self.args.server)
+        data = OSFuscation.run(self.args.debug, self.args.template, self.args.server)
         if self.args.debug:
             print('OSFuscation return value', data)
 

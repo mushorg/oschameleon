@@ -3,11 +3,13 @@ from setuptools import setup
 import oschameleon
 
 setup(
-    packages=["oschameleon", ],
+    packages=[
+        "oschameleon",
+    ],
     name=oschameleon.__title__,
     version=oschameleon.__version__,
-    author='MushMush',
-    author_email='glaslos@gmail.com',
+    author="MushMush",
+    author_email="glaslos@gmail.com",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
@@ -21,11 +23,11 @@ setup(
         "": ["*.txt", "*.md"],
     },
     include_package_data=True,
-    long_description=open('README.md').read(),
-    url='https://github.com/mushorg/oschameleon',
-    description='OS Fingerprint Obfuscation for modern Linux Kernels',
-    test_suite='nose.collector',
+    long_description=open("README.md").read(),
+    url="https://github.com/mushorg/oschameleon",
+    description="OS Fingerprint Obfuscation for modern Linux Kernels",
+    test_suite="nose.collector",
     tests_require="nose",
     zip_safe=False,
-    install_requires=open('requirements.txt').read().splitlines(),
+    install_requires=open("requirements.txt").read().splitlines(),
 )

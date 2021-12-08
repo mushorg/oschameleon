@@ -120,9 +120,9 @@ class OSFuscation(object):
         os_pattern = get_os_pattern(template_path, debug)
 
         if debug:
-            print '*' * 30
-            print os_pattern
-            print '*' * 30
+            print('*' * 30)
+            print(os_pattern)
+            print('*' * 30)
 
         # Flush the IP tables first
         flush_tables()
@@ -148,7 +148,7 @@ class OSFuscation(object):
             q.unbind(socket.AF_INET)
             q.close()
             flush_tables()
-            print 'Exiting...'
+            print('Exiting...')
 
 
 if __name__ == '__main__':

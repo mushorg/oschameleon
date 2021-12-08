@@ -1,9 +1,9 @@
 #!/usr/bin/python
-'''
+"""
 Created on 24.09.2016
 
 @author: manuel
-'''
+"""
 
 import struct
 
@@ -15,6 +15,7 @@ class ReplyPacket(object):
     IP packet
     Setting the IP fields
     """
+
     def __init__(self, pkt, os_pattern):
         self.ip = IP()
         self.ip.src = pkt[IP].dst
@@ -24,7 +25,7 @@ class ReplyPacket(object):
 
     def set_DF(self, df):
         if df:
-            self.ip.flags = 'DF'
+            self.ip.flags = "DF"
 
     def set_ToS(self, tos):
         self.ip.tos = tos
@@ -32,15 +33,15 @@ class ReplyPacket(object):
     # set IP ID according to the OS pattern
     def set_IP_ID(self, ip_id):
 
-        if ip_id == 'I':
+        if ip_id == "I":
             self.os_pattern.IP_ID_tmp += 1
             self.ip.id = self.os_pattern.IP_ID_tmp
 
-        elif ip_id == 'RI':
+        elif ip_id == "RI":
             self.os_pattern.IP_ID_tmp += 1001
             self.ip.id = self.os_pattern.IP_ID_tmp
 
-        elif ip_id == 'Z':
+        elif ip_id == "Z":
             self.os_pattern.IP_ID_tmp += 0
             self.ip.id = self.os_pattern.IP_ID_tmp
         else:
@@ -75,13 +76,13 @@ def _build_crc_tables(crc32_table, crc32_reverse):
         for j in range(8, 0, -1):
             # build normal table
             if (fwd & 1) == 1:
-                fwd = (fwd >> 1) ^ 0xedb88320
+                fwd = (fwd >> 1) ^ 0xEDB88320
             else:
                 fwd >>= 1
             crc32_table[i] = fwd
             # build reverse table =)
             if rev & 0x80000000 == 0x80000000:
-                rev = ((rev ^ 0xedb88320) << 1) | 1
+                rev = ((rev ^ 0xEDB88320) << 1) | 1
             else:
                 rev <<= 1
             crc32_reverse[i] = rev
@@ -90,10 +91,10 @@ def _build_crc_tables(crc32_table, crc32_reverse):
 
 
 def crc32(s, crc32_table):
-    crc = 0xffffffff
+    crc = 0xFFFFFFFF
     for c in s:
-        crc = (crc >> 8) ^ crc32_table[crc & 0xff ^ ord(c)]
-    return crc ^ 0xffffffff
+        crc = (crc >> 8) ^ crc32_table[crc & 0xFF ^ ord(c)]
+    return crc ^ 0xFFFFFFFF
 
 
 def reverse_crc(wanted_crc):
@@ -103,22 +104,22 @@ def reverse_crc(wanted_crc):
     crc32_table, crc32_reverse = _build_crc_tables(crc32_table, crc32_reverse)
 
     # forward calculation of CRC up to pos, sets current forward CRC state
-    fwd_crc = 0xffffffff
+    fwd_crc = 0xFFFFFFFF
     for c in s[:pos]:
-        fwd_crc = (fwd_crc >> 8) ^ crc32_table[fwd_crc & 0xff ^ ord(c)]
+        fwd_crc = (fwd_crc >> 8) ^ crc32_table[fwd_crc & 0xFF ^ ord(c)]
 
     # backward calculation of CRC up to pos, sets wanted backward CRC state
-    bkd_crc = wanted_crc ^ 0xffffffff
+    bkd_crc = wanted_crc ^ 0xFFFFFFFF
     for c in s[pos:][::-1]:
-        bkd_crc = ((bkd_crc << 8) & 0xffffffff) ^ crc32_reverse[bkd_crc >> 24]
+        bkd_crc = ((bkd_crc << 8) & 0xFFFFFFFF) ^ crc32_reverse[bkd_crc >> 24]
         bkd_crc ^= ord(c)
 
     # deduce the 4 bytes we need to insert
-    for c in struct.pack('<L', fwd_crc)[::-1]:
-        bkd_crc = ((bkd_crc << 8) & 0xffffffff) ^ crc32_reverse[bkd_crc >> 24]
+    for c in struct.pack("<L", fwd_crc)[::-1]:
+        bkd_crc = ((bkd_crc << 8) & 0xFFFFFFFF) ^ crc32_reverse[bkd_crc >> 24]
         bkd_crc ^= ord(c)
 
-    res = s[:pos] + struct.pack('<L', bkd_crc) + s[pos:]
+    res = s[:pos] + struct.pack("<L", bkd_crc) + s[pos:]
 
-    assert(crc32(res, crc32_table) == wanted_crc)
+    assert crc32(res, crc32_table) == wanted_crc
     return res

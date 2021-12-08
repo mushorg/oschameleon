@@ -71,4 +71,4 @@ class Ext_IP(object):
 
 if __name__ == "__main__":
     ext = Ext_IP()
-    print ext.get_ext_ip(urls=["http://queryip.net/ip/", "http://ifconfig.me/ip"])
+    print(ext.get_ext_ip(urls=["http://queryip.net/ip/", "http://ifconfig.me/ip"]))

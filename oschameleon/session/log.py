@@ -26,7 +26,7 @@ class Log(object):
     def remote_logging(self, name, server):
         rootLogger = logging.getLogger('')
         rootLogger.setLevel(logging.DEBUG)
-        print server
+        print(server)
         socketHandler = logging.handlers.SocketHandler(server, logging.handlers.DEFAULT_TCP_LOGGING_PORT)
         # don't bother with a formatter, since a socket handler sends the event as
         # an unformatted pickle

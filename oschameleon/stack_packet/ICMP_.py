@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
-'''
+"""
 Created on 24.09.2016
 
 @author: manuel
-'''
+"""
 
 from IP_ import ReplyPacket
 from helper import drop_packet
@@ -16,6 +16,7 @@ class ICMPPacket(ReplyPacket):
     """
     ICMP packet
     """
+
     def __init__(self, pkt, os_pattern, package_type):
         ReplyPacket.__init__(self, pkt, os_pattern)
         self.icmp = ICMP()
@@ -56,13 +57,13 @@ def send_ICMP_reply(pkt, ICMP_type, os_pattern, TCP_OPTIONS):
     # create reply packet and set flags
     icmp_rpl = ICMPPacket(pkt, os_pattern, ICMP_type)
     # set ICMP header fields
-    icmp_rpl.set_DF(TCP_OPTIONS['DF'])
+    icmp_rpl.set_DF(TCP_OPTIONS["DF"])
 
     # ICMP type = 0  =^ echo reply
     if ICMP_type == 0:
         icmp_rpl.set_IP_ID(os_pattern.IP_ID_II_CNT)
         # set ICMP code field
-        if os_pattern.ICMP_CODE == 'S':
+        if os_pattern.ICMP_CODE == "S":
             icmp_rpl.set_ICMP_code(pkt[ICMP].code)
         else:
             icmp_rpl.set_ICMP_code(os_pattern.ICMP_CODE)
@@ -86,7 +87,7 @@ def send_ICMP_reply(pkt, ICMP_type, os_pattern, TCP_OPTIONS):
             print("icmp input packet length: ", len_packet)
             pad_len = os_pattern.ICMP_IPL - len_packet - 16
             pad = Padding()
-            pad.add_payload('\x00' * pad_len)
+            pad.add_payload("\x00" * pad_len)
             icmp_rpl.pkt = icmp_rpl.pkt / pad
             print("icmp reply packet length: ", int(str(len(icmp_rpl.pkt)), 16))
 
@@ -101,12 +102,22 @@ def check_ICMP_probes(pkt, nfq_packet, os_pattern):
     """
     if pkt[ICMP].type is 8:
         # Probe 1 + 2
-        if (pkt[ICMP].seq == 295 and pkt[IP].flags == 0x02 and len(pkt[ICMP].payload) == 120) or (pkt[ICMP].seq == 296 and pkt[IP].tos == 0x04 and len(pkt[ICMP].payload) == 150):
+        if (
+            pkt[ICMP].seq == 295
+            and pkt[IP].flags == 0x02
+            and len(pkt[ICMP].payload) == 120
+        ) or (
+            pkt[ICMP].seq == 296
+            and pkt[IP].tos == 0x04
+            and len(pkt[ICMP].payload) == 150
+        ):
             drop_packet(nfq_packet)
             if os_pattern.PROBES_2_SEND["IE"]:
                 # ICMP type = 0  =^ echo reply
                 ICMP_type = 0
-                send_ICMP_reply(pkt, ICMP_type, os_pattern, os_pattern.TCP_OPTIONS['IE'])
+                send_ICMP_reply(
+                    pkt, ICMP_type, os_pattern, os_pattern.TCP_OPTIONS["IE"]
+                )
                 # print "IE Probe"
         else:
             forward_packet(nfq_packet)

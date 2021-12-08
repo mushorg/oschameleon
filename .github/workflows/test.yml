@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     strategy:
       matrix:
         python-version: ["2.7"]
@@ -17,7 +17,6 @@ jobs:
     - name: Install packages
       run: |
         sudo apt -qq update
-        sudo apt search python nfqueue
         sudo apt -qq install python-nfqueue
     - name: Install dependencies
       run: |

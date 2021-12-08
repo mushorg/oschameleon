@@ -14,10 +14,13 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Install packages
+      run: |
+        sudo apt -qq update
+        sudo apt search python nfqueue
+        sudo apt -qq install python-nfqueue
     - name: Install dependencies
       run: |
-        sudo apt-get -qq update
-        sudo apt-get -qq install python-nfqueue
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install nose

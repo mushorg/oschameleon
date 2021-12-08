@@ -21,7 +21,7 @@ setup(
         "": ["*.txt", "*.md"],
     },
     include_package_data=True,
-    long_description=open('README.rst').read(),
+    long_description=open('README.md').read(),
     url='https://github.com/mushorg/oschameleon',
     description='OS Fingerprint Obfuscation for modern Linux Kernels',
     test_suite='nose.collector',

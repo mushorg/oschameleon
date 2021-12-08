@@ -1,6 +1,6 @@
 recursive-exclude tests *
 include requirements.txt
-include README.rst
+include README.md
 include Changelog.txt
 include LICENSE.txt
 recursive-include oschameleon *

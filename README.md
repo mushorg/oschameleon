@@ -1,4 +1,4 @@
-![tests](https://github.com/mushorg/oschameleon/actions/workflows/test/badge.svg)
+![tests](https://github.com/mushorg/oschameleon/actions/workflows/test.yml/badge.svg)
 
 OSChameleon
 ===========

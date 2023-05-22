@@ -1,3 +1,3 @@
-requests==2.21.0
+requests==2.31.0
 netifaces==0.10.9
 scapy==2.4.2

@@ -9,7 +9,7 @@ Created on 24.09.2016
 from IP_ import ReplyPacket
 from helper import drop_packet
 from helper import forward_packet
-from scapy.all import IP, UDP, ICMP, send, Padding  # @UnresolvedImport
+from scapy.all import IP, UDP, ICMP, Raw, send, Padding  # @UnresolvedImport
 
 
 class ICMPPacket(ReplyPacket):
@@ -39,7 +39,7 @@ class ICMPPacket(ReplyPacket):
 
     # some OS reply with no data returned
     def clr_payload(self):
-        self.pkt[UDP].payload = ""
+        self.pkt[UDP].payload = Raw()
 
     # echo reply
     def send_packet(self):
